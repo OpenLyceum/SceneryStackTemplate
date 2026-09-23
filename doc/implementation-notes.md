@@ -57,7 +57,7 @@ Or from the workspace: `Baton/scripts/create-sim.sh --repo MySim --name "My Simu
 6. **Locale JSON** — title, strings, `a11y` keys; register locales in `init.ts`.
 7. **`public/icons/icon.svg`** → `npm run icons`; align theme color in `index.html` / vite config.
 8. **`tests/setup.ts`** — `init({ name: … })` must match `package.json` name after rename.
-9. **`CLAUDE.md`** — sim-specific file map and pitfalls for AI assistants.
+9. **`AGENTS.md`** — sim-specific file map and pitfalls for AI assistants.
 
 ## Common components (keep when forking)
 
@@ -91,7 +91,7 @@ Wire `TimeControlNode` to `model.timer.isPlayingProperty` in the view.
 
 ### SimButtonOptions
 
-Spread flat button options into every push/round button and `TimeControlNode` (see `CLAUDE.md`).
+Spread flat button options into every push/round button and `TimeControlNode` (see `AGENTS.md`).
 Use `SIM_COMBO_BOX_OPTIONS` + `LIGHT_SURFACE_TEXT_FILL` for light control surfaces on dark panels.
 
 ## Accessibility (reference implementation)

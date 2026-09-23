@@ -1,6 +1,6 @@
-# CLAUDE.md — SceneryStack Template
+# AGENTS.md — SceneryStack Template
 
-Sim-specific context for AI assistants. General SceneryStack guidance: [OpenLyceum/.github/CLAUDE.md](https://github.com/OpenLyceum/.github/blob/main/CLAUDE.md).
+Sim-specific context for AI assistants. General SceneryStack guidance: [OpenLyceum/.github/AGENTS.md](https://github.com/OpenLyceum/.github/blob/main/AGENTS.md).
 
 ## Project
 
@@ -101,7 +101,7 @@ every interactive node. Full convention and checklist: [Baton/ACCESSIBILITY.md](
 
 A clean fork of this template rarely needs compliance carve-outs — root `SimConstants.ts`,
 `*Colors.ts`, `*Namespace.ts`, standard screen layout, and full a11y wiring pass Baton's
-compliance check out of the box. Document carve-outs in the forked sim's `CLAUDE.md` only when
+compliance check out of the box. Document carve-outs in the forked sim's `AGENTS.md` only when
 you introduce a deliberate deviation (nested constants, hardcoded interaction fills, etc.).
 
 ### `package.json` overrides

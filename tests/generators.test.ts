@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 const PROJECT_ROOT = process.cwd();
 const TSX_IMPORT = import.meta.resolve("tsx");
 const FIXTURE_ENTRIES = [
-  "CLAUDE.md",
+  "AGENTS.md",
   "README.md",
   "doc",
   "index.html",
