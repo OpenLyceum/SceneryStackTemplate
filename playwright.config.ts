@@ -27,6 +27,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
+    // A fixed location for sims that read geolocation, so fuzz runs are deterministic
+    // and never block on a permission prompt. Harmless for sims that don't use it.
+    geolocation: { latitude: 40.8, longitude: -74.0 },
+    permissions: ["geolocation"],
   },
   webServer: {
     command: `npm run start -- --port ${port} --strictPort`,
@@ -39,6 +43,12 @@ export default defineConfig({
       name: "chromium",
       use: {
         browserName: "chromium",
+        // Makes WebGPU available in headless Chromium on Linux, so sims with a WebGPU
+        // path exercise it; without a GPU, requestAdapter() still resolves to null and
+        // the sim's fallback runs. No effect on sims that don't touch WebGPU.
+        launchOptions: {
+          args: ["--enable-unsafe-webgpu", "--enable-features=Vulkan"],
+        },
       },
     },
   ],

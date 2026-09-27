@@ -140,7 +140,7 @@ Fleet-standard Vitest layout (keep when forking):
 | `tests/setup.ts` | Canvas / AudioContext mocks + `init({ name: "…" })` before SceneryStack imports |
 | `tests/TimeModel.test.ts` | Sample model unit tests — replace with real physics tests |
 | `tests/memory-leak.test.ts` | WeakRef + `forceGC` dispose regression (fleet pattern) |
-| `tests/fuzz/fuzz.spec.ts` | Optional Playwright fuzz smoke via joist `?fuzz` |
+| `tests/fuzz/fuzz.spec.ts` | Optional Playwright fuzz smoke: pointer `?fuzz` + keyboard `?fuzzBoard` (template-owned; add sim-specific specs as separate files) |
 | `playwright.config.ts` | Chromium project + Vite webServer for fuzz |
 
 - Put unit tests only under root `tests/`, mirroring `src/` (never co-locate or use `__tests__/`).
@@ -165,7 +165,7 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run check` | TypeScript (`tsc --noEmit` + scripts project) |
 | `npm run lint` / `npm run fix` | Biome check / auto-fix |
 | `npm test` | Vitest unit tests |
-| `npm run test:fuzz` | Playwright fuzz smoke (`?fuzz&ea`, 30s; `npm run test:fuzz -- 90` to change) |
+| `npm run test:fuzz` | Playwright fuzz smoke (pointer + keyboard, `?ea`, 30s each; `npm run test:fuzz -- 90` to change) |
 | `npm run test:fuzz:quick` | 10s fuzz |
 | `npm run test:fuzz:long` | 300s fuzz |
 | `npm run icons` | Regenerate PWA icons (+ placeholder screenshots) |
