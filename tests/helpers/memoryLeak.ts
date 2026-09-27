@@ -20,8 +20,12 @@ export type DisposalCase = {
   readonly name: string;
   /** Builds a fresh instance. Must not keep references to it elsewhere. */
   readonly create: () => DisposableObject;
-  /** Set false for objects whose dispose() deliberately asserts when called twice. */
-  readonly allowsDoubleDispose?: boolean;
+  /**
+   * Also check that a second dispose() does not throw. Opt-in: axon Properties (and
+   * PhET's Disposable) treat double disposal as a bug, so most objects legitimately
+   * throw; set this for objects that promise idempotent disposal.
+   */
+  readonly idempotentDispose?: boolean;
 };
 
 /**
@@ -55,8 +59,8 @@ export function createAndDispose(create: () => DisposableObject): WeakRef<object
 
 /**
  * The standard suite: gc is exposed, a plain object is collected, and for each case
- * the instance is collected after dispose(), a second dispose() does not throw, and
- * repeated create/dispose cycles leave no survivors.
+ * the instance is collected after dispose() and repeated create/dispose cycles leave no
+ * survivors (plus, with idempotentDispose, a second dispose() does not throw).
  */
 export function describeDisposalLeaks(cases: readonly DisposalCase[]): void {
   describe("Memory leak regression", () => {
@@ -70,14 +74,14 @@ export function describeDisposalLeaks(cases: readonly DisposalCase[]): void {
       expect(ref.deref()).toBeUndefined();
     });
 
-    for (const { name, create, allowsDoubleDispose = true } of cases) {
+    for (const { name, create, idempotentDispose = false } of cases) {
       it(`${name} is collected after dispose`, async () => {
         const ref = createAndDispose(create);
         await forceGC(ref);
         expect(ref.deref()).toBeUndefined();
       });
 
-      if (allowsDoubleDispose) {
+      if (idempotentDispose) {
         it(`${name}: double dispose() does not throw`, () => {
           const instance = create();
           instance.dispose();
