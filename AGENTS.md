@@ -208,8 +208,17 @@ After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSI
 1. **Rename** — replace `scenerystack-template` / `SceneryStack Template` / `Sim` prefix in `init.ts`, `brand.ts`, `package.json` (name, description, keywords, repository.url), Colors/Constants/Namespace/Panel/ButtonOptions/ControlOptions/Preferences
 2. **Screens** — run `scaffold-screens` or mirror `sim-screen/` into kebab folders
 3. **Locale** — add `strings_XX.json`, register in `StringManager`, add locale to `init.ts` `availableLocales`
-4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`; match theme color in `index.html` / `vite.config.ts`
-5. **Colors** — edit `*Colors.ts` (`default` + `projector` profiles per property)
+4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`; match theme color in `index.html` / `vite.config.ts`.
+   Once `assets/screenshot.png` exists (Baton `generate-screenshots.sh`), `npm run icons -- --screenshots-from-assets`
+   replaces the placeholder PWA screenshots
+5. **Colors** — edit `*Colors.ts` (`default` + `projector` profiles per property), one
+   `new ProfileColorProperty(Namespace, name, { default, projector })` per entry — no local helper
+6. **Description** — write a real one-sentence `package.json` `description`; `index.html` and the
+   PWA manifest read it (`%SIM_DESCRIPTION%`), so there is nothing else to edit
+7. **Placeholders** — delete the `exampleToggle` preference and the `exampleControl` a11y string;
+   delete `src/common/TimeModel.ts` (and `tests/TimeModel.test.ts`) if the sim has no clock
+8. **Verify** — `Baton/scripts/check-template-drift.sh --fix <Sim>` (drops `rename` /
+   `scaffold-screens`, which are template-only) and `COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh .`
 
 ## Multi-screen sims
 
