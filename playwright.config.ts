@@ -1,9 +1,14 @@
 /**
- * Playwright configuration for optional fuzz testing (Template smoke).
+ * Playwright configuration for the optional fuzz smoke (tests/fuzz/).
+ *
+ * Template-owned: keep identical across the fleet (Baton check-template-drift).
+ * FUZZ_DURATION (seconds) sizes the timeout; FUZZ_PORT (default 5173) lets
+ * several sims fuzz in parallel without fighting over the dev-server port.
  */
 
 import { defineConfig } from "@playwright/test";
 
+const port = Math.max(1, parseInt(process.env["FUZZ_PORT"] || "5173", 10) || 5173);
 const fuzzSeconds = Math.max(1, parseInt(process.env["FUZZ_DURATION"] || "30", 10) || 30);
 
 export default defineConfig({
@@ -18,14 +23,14 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: `http://localhost:${port}`,
     trace: "retain-on-failure",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run start",
-    url: "http://localhost:5173",
+    command: `npm run start -- --port ${port} --strictPort`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: !process.env["CI"],
     timeout: 120_000,
   },

@@ -9,6 +9,7 @@
  *   npm run test:fuzz -- --duration 90
  *   FUZZ_DURATION=90 npm run test:fuzz
  *   FUZZ_SEED=12345 npm run test:fuzz
+ *   FUZZ_PORT=5190 npm run test:fuzz  # parallel runs across sims
  *
  * `?ea` is required: without it assertions are silent and the test cannot fail
  * on an invalid internal state.
