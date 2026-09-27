@@ -5,8 +5,9 @@
  * happy-dom does not provide working versions, so we patch in minimal mocks
  * before any scenerystack code loads, then call init() once for the suite.
  *
- * This is the canonical test setup for OpenLyceum sims — copy it as-is when
- * forking the template, changing only the `name` passed to init() below.
+ * Template-owned: identical across the fleet except the `name` passed to init()
+ * (Baton check-template-drift substitutes it). Extend mocks in the template, or
+ * record a sim-specific variant under AGENTS.md → "Compliance carve-outs".
  */
 
 // ── shared no-op helpers ─────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ function createMockContext2D(): CanvasRenderingContext2D {
 // ── Web Audio mock ───────────────────────────────────────────────────────────
 class MockAudioContext {
   readonly sampleRate = 44100;
-  readonly state = "running" as AudioContextState;
+  readonly state: AudioContextState = "running";
   readonly destination = {} as AudioDestinationNode;
   createGain(): GainNode {
     return {
@@ -156,7 +157,7 @@ HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, cont
 import { init, madeWithSceneryStackSplashDataURI } from "scenerystack/init";
 
 init({
-  // Change to match your package.json "name" when forking the template.
+  // Must match the package.json "name" (and the name in src/init.ts).
   name: "scenerystack-template",
   version: "1.0.0-test",
   brand: "made-with-scenerystack",
