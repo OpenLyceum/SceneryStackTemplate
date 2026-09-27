@@ -142,6 +142,23 @@ class MockAudioContext {
 (globalThis as Record<string, unknown>)["AudioContext"] = MockAudioContext;
 (globalThis as Record<string, unknown>)["webkitAudioContext"] = MockAudioContext;
 
+// ── Web Worker mock ──────────────────────────────────────────────────────────
+// happy-dom has no Worker. Models that construct one as a field initializer
+// (e.g. an OpenCV or physics worker) still need the constructor to exist.
+// Messages are swallowed: a real worker cannot run under happy-dom anyway.
+class MockWorker {
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  postMessage: () => void = noop;
+  terminate: () => void = noop;
+  addEventListener: () => void = noop;
+  removeEventListener: () => void = noop;
+  dispatchEvent: () => boolean = () => false;
+}
+if (typeof globalThis.Worker === "undefined") {
+  (globalThis as Record<string, unknown>)["Worker"] = MockWorker;
+}
+
 // ── patch getContext("2d") before any scenerystack import ────────────────────
 const origGetContext: typeof HTMLCanvasElement.prototype.getContext = HTMLCanvasElement.prototype.getContext;
 HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, ...args: unknown[]) {
