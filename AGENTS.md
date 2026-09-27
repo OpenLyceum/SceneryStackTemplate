@@ -104,6 +104,19 @@ A clean fork of this template rarely needs compliance carve-outs — root `SimCo
 compliance check out of the box. Document carve-outs in the forked sim's `AGENTS.md` only when
 you introduce a deliberate deviation (nested constants, hardcoded interaction fills, etc.).
 
+### Template-owned files (drift-checked)
+
+Infrastructure files are owned by this template and must stay byte-identical in every sim
+(after substituting the sim's own name). `Baton/scripts/check-template-drift.sh <Sim>` compares a
+sim against this repo using `Baton/config/template-manifest.json`, which lists the exact files,
+the required `package.json` scripts, and the few keys a sim may extend (extra `biome.json`
+ignores, extra tsconfig `types`, CSP/Permissions additions).
+
+To diverge on purpose, add a bullet to the sim's own `## Compliance carve-outs` section naming
+the file in backticks and the reason, e.g. ``- `tests/setup.ts`: adds a WebGPU mock``. The drift
+checker treats a file named there as approved. Fix template-owned files **here first**, then
+propagate — never hand-edit one in a single sim.
+
 ### `package.json` overrides
 
 JSON cannot carry comments, so the rationale for forced transitive pins lives here. Prefer
@@ -158,9 +171,10 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run icons` | Regenerate PWA icons (+ placeholder screenshots) |
 | `npm run rename` | Sim-level fork/rename (`--id`, `--name`) |
 | `npm run scaffold-screens` | Emit N screens (`--screens Intro,Lab`) |
-| `npm run release` | `check && lint && build`, then version patch + push tags |
+| `npm run release` | `check && lint && build && test`, then version patch + push tags |
 
-`npm run release` intentionally skips `npm test` — template tests are samples. Real sims should append `&& npm test` before the version bump.
+`src/init.ts` reads `version` from `package.json`, so the patch bump shows up in the About dialog
+without a second edit.
 
 ## Customizing a new sim from this template
 
@@ -215,7 +229,7 @@ Summary:
 | **GitHub template** ("Use this template") | Humans starting a sim in the browser |
 | `npm run rename` + `scaffold-screens` | Same, after cloning the template |
 | **npm workspace / monorepo** | Managing a suite of sims with shared tooling |
-| **git subtree** for pulling updates | Keeping forks in sync with template improvements |
+| **`Baton/scripts/check-template-drift.sh`** | Keeping forks in sync with template improvements |
 
 See `doc/multi-screen.md` → "Using this template beyond a direct copy" for details.
 

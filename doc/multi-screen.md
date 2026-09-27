@@ -426,18 +426,9 @@ physics-sims/
 Each sim is still independently deployable; the workspace just gives you a
 single `npm run build --workspaces` command to build all of them.
 
-### Git subtree for template updates
+### Keeping forks in sync with the template
 
-To pull template improvements back into an existing fork:
-
-```sh
-# One-time: add the template as a remote
-git remote add template https://github.com/OpenLyceum/SceneryStackTemplate.git
-
-# Pull template changes into a branch for review
-git fetch template
-git merge template/main --allow-unrelated-histories --squash
-```
-
-Review the diff carefully — class-name changes in the template may conflict
-with your sim-specific renames.
+Do not merge template history into a sim. Template-owned infrastructure files are listed in
+`Baton/config/template-manifest.json`; run `Baton/scripts/check-template-drift.sh <Sim>` to see
+which of them have drifted, and `--fix` to copy the template version over (sim name substituted).
+Deliberate deviations go in the sim's `AGENTS.md` → `## Compliance carve-outs`.
