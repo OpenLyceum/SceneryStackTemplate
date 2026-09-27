@@ -6,9 +6,11 @@
  *
  * Replace public/screenshots/{wide,narrow}.png with real sim shots before shipping
  * (e.g. Baton/scripts/generate-screenshots.sh → copy into public/screenshots/).
- * Placeholders are written only where no screenshot exists yet, so re-running
- * `npm run icons` never clobbers real shots; pass --placeholder-screenshots to
- * overwrite them deliberately.
+ * With --screenshots-from-assets, both PWA screenshots are rebuilt from the sim's
+ * real capture, assets/screenshot.png (the Baton landing-page shot), letterboxed on
+ * the theme colour. Otherwise branded placeholders are written only where no
+ * screenshot exists yet, so re-running `npm run icons` never clobbers real shots;
+ * --placeholder-screenshots overwrites them deliberately.
  *
  * Template-owned: keep identical across the fleet. The background colour comes from
  * the `theme-color` meta in index.html (which must also match the manifest
@@ -73,13 +75,29 @@ async function writeScreenshot(width: number, height: number, file: string): Pro
     .toFile(resolve(publicDir, file));
 }
 
+/** A real capture scaled to fit inside width×height, centred on the theme background. */
+async function writeScreenshotFrom(source: string, width: number, height: number, file: string): Promise<void> {
+  const fitted = await sharp(source).resize(width, height, { fit: "inside" }).png().toBuffer();
+  await sharp({ create: { width, height, channels: 4, background: THEME_BG } })
+    .composite([{ input: fitted, gravity: "center" }])
+    .png()
+    .toFile(resolve(publicDir, file));
+}
+
+const capture = resolve(here, "..", "assets", "screenshot.png");
+const fromAssets = process.argv.includes("--screenshots-from-assets");
 const overwriteScreenshots = process.argv.includes("--placeholder-screenshots");
+if (fromAssets && !existsSync(capture)) {
+  throw new Error("--screenshots-from-assets needs assets/screenshot.png (Baton/scripts/generate-screenshots.sh)");
+}
 mkdirSync(resolve(publicDir, "screenshots"), { recursive: true });
 for (const [width, height, file] of [
   [1280, 720, "screenshots/wide.png"],
   [720, 1280, "screenshots/narrow.png"],
 ] as const) {
-  if (overwriteScreenshots || !existsSync(resolve(publicDir, file))) {
+  if (fromAssets) {
+    await writeScreenshotFrom(capture, width, height, file);
+  } else if (overwriteScreenshots || !existsSync(resolve(publicDir, file))) {
     await writeScreenshot(width, height, file);
   }
 }
