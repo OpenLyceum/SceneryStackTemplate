@@ -6,13 +6,16 @@
  *
  * Replace public/screenshots/{wide,narrow}.png with real sim shots before shipping
  * (e.g. Baton/scripts/generate-screenshots.sh → copy into public/screenshots/).
+ * Placeholders are written only where no screenshot exists yet, so re-running
+ * `npm run icons` never clobbers real shots; pass --placeholder-screenshots to
+ * overwrite them deliberately.
  *
  * Template-owned: keep identical across the fleet. The background colour comes from
  * the `theme-color` meta in index.html (which must also match the manifest
  * `theme_color`), so nothing here is sim-specific.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import pngToIco from "png-to-ico";
@@ -70,6 +73,13 @@ async function writeScreenshot(width: number, height: number, file: string): Pro
     .toFile(resolve(publicDir, file));
 }
 
+const overwriteScreenshots = process.argv.includes("--placeholder-screenshots");
 mkdirSync(resolve(publicDir, "screenshots"), { recursive: true });
-await writeScreenshot(1280, 720, "screenshots/wide.png");
-await writeScreenshot(720, 1280, "screenshots/narrow.png");
+for (const [width, height, file] of [
+  [1280, 720, "screenshots/wide.png"],
+  [720, 1280, "screenshots/narrow.png"],
+] as const) {
+  if (overwriteScreenshots || !existsSync(resolve(publicDir, file))) {
+    await writeScreenshot(width, height, file);
+  }
+}
