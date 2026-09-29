@@ -1,84 +1,33 @@
 # Improvement Recommendations — SceneryStack Template
 
-Non-test recommendations for `SceneryStackTemplate/`, grouped by impact. Each item
-references the concrete file(s) involved so an editor (human or agent) can act
-without re-exploration.
+Remaining non-test recommendations for `SceneryStackTemplate/`. Numbering is
+preserved for earlier references. Items 1, 4–8, 10–15 are implemented and removed:
+`scripts/rename-sim.ts` now documents its token-order invariant and uses word-boundary
+identifier replacements; `StringManager` exposes explicit accessibility/preferences
+return types; `SimScreenView` includes a listener/disposal example; and
+`SimKeyboardHelpContent` includes commented slider/time-control sections. The release
+script also runs the existing unit suite before bumping the version.
 
-Items 1, 5, 6, 10, 11, 12, 13 and 15 are done (template hardening, 2026-08-11; `release`
-now runs `npm test`, 2026-09-27) and have been removed; numbering is kept so older
-references still resolve.
+Former item 3 proposed pinning reusable workflows independently of Baton. The fleet
+instead deliberately uses `OpenLyceum/Baton/.github/workflows/*@main`, enforced by
+[Baton's conventions](https://github.com/OpenLyceum/Baton/blob/main/CONVENTIONS.md).
+Any change to that policy belongs in Baton and its compliance rules before propagation.
 
-## Correctness / hardening
+## Local Node and npm policy
 
-### 2. `engines.node: ">=24"` allows local drift past Node 24
+### 2. Align local Node selection with CI's Node 24
 
-Baton's `check-node-version.sh` enforces Node 24 in CI, but a developer on
-Node 25 passes `engines` and fails in CI anyway. Tighten to `">=24 <25"` and:
+The template declares `engines.node: ">=24"`, while CI uses Node 24. A possible
+improvement is a tighter `">=24 <25"` range and a root `.nvmrc` containing `24`.
+Baton's current compliance rule accepts `">=24"` (or `">=24.0.0"`) only, so changing
+the template alone would fail the fleet audit. Review the policy in Baton first,
+update its compliance rule and template manifest together, then propagate approved
+package/config changes through the drift checker.
 
-- Add a root `.nvmrc` containing `24`.
-- Add a root `.npmrc` with `engine-strict=true`.
+### 9. Decide whether to add a fleet `.npmrc`
 
-…so installs fail fast locally instead of in CI.
-
-### 3. Reusable workflows pinned to `@main`
-
-`.github/workflows/ci.yml` and `deploy.yml` reference
-`OpenLyceum/Baton/.github/workflows/*@main`. Every sim using this template is
-exposed to a compromised Baton commit. Pin to a SHA (or a `@v1` tag) for the
-template — it's the one repo forks will copy. At minimum, document the trade-off
-in `AGENTS.md`.
-
-### 4. `rename-sim.ts` replacement table is order-fragile
-
-`scripts/rename-sim.ts` `REPLACEMENTS` relies on "longest first" with overlapping
-prefixes (`Sim` → `SimColors` → `SimConstants`). It works today only because the
-bare token `Sim` is not in the list, but adding it (a common request) would
-silently corrupt every `SimColors`/`SimConstants` occurrence. Either:
-
-- Add a comment enforcing the invariant at the top of `REPLACEMENTS`, or
-- Switch class-token replacements to `\b`-bounded regex matches.
-
-## DX / API surface
-
-### 7. `StringManager` getter return types are inconsistent
-
-`src/i18n/StringManager.ts`:
-
-- `getTitleStringProperty()` is explicitly typed `ReadOnlyProperty<string>`.
-- `getA11yStrings()` and `getPreferences()` return inferred JSON types.
-
-Renaming a locale key today silently renames the public API exposed to views
-with no compile error at the call site. Add explicit return types (or run the
-JSON through a `satisfies` shape) so a key rename surfaces as a type error.
-
-### 8. No dispose-pattern reference in `SimScreenView`
-
-`src/sim-screen/view/SimScreenView.ts` is billed (in `AGENTS.md`) as the
-"canonical accessibility reference," and its header comment instructs forks to
-turn `currentDetailsContent` into a live `DerivedProperty` — with no example of
-unlinking it. Ship a commented `public override dispose()` stub demonstrating
-`DerivedProperty` / `Multilink` cleanup. Forks copy what they see.
-
-### 9. `.npmrc` is absent
-
-Fleet consistency would benefit from a root `.npmrc`:
-
-- `engine-strict=true` (pairs with #2),
-- `fund=false`,
-- and a decision on `save-exact=` (pick one and propagate via Baton).
-
-## Docs / polish
-
-### 14. `SimKeyboardHelpContent` ships only `BasicActionsKeyboardHelpSection`
-
-`src/sim-screen/view/SimKeyboardHelpContent.ts` constructs
-`TwoColumnKeyboardHelpContent([basic], [])`. Since this is the a11y reference,
-pre-stub a second column (slider help or a hotkeys section) commented out, so
-forks see the pattern instead of inventing it.
-
-## Suggested first batch
-
-The highest-value, lowest-risk subset to apply first:
-
-- **#2** — engines + `.nvmrc` + `.npmrc`
-- **#7** — explicit `StringManager` return types
+The template has no root `.npmrc`. Consider `engine-strict=true` alongside #2, and
+make an explicit decision on `fund` and `save-exact` before introducing defaults.
+A new template-owned file also needs Baton's root-file allowlist and template manifest
+updated before it can be propagated. Keep the decision centralized rather than
+adding different npm policies in individual simulations.

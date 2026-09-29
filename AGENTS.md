@@ -21,7 +21,7 @@ OpenLyceum sims. Prefer `Baton/scripts/create-sim.sh` (or GitHub **Use this temp
 | `src/sim-screen/model/SimModel.ts` | Simulation state and logic |
 | `src/sim-screen/view/SimScreenView.ts` | Visual nodes, layout, `screenSummaryContent` + `pdomOrder` |
 | `src/sim-screen/view/SimScreenSummaryContent.ts` | Accessible screen summary (reference a11y pattern) |
-| `src/sim-screen/view/SimKeyboardHelpContent.ts` | Keyboard-help dialog content |
+| `src/sim-screen/view/SimKeyboardHelpContent.ts` | Basic keyboard actions + commented slider/time-control sections |
 | `src/common/SimPanel.ts` | Pre-themed `Panel` wrapper (uses `SimColors` automatically) |
 | `src/common/SimButtonOptions.ts` | Flat button-appearance option bundles + light-control-surface combo-box options |
 | `src/common/SimControlOptions.ts` | Shared slider, number-control, and checkbox sizing/theme options |
@@ -165,13 +165,13 @@ npm run lint && npm run check && npm run build && npm test
 | `npm start` / `npm run dev` | Vite dev server |
 | `npm run build` | Type-check + production build |
 | `npm run build:single` | Single-file build mode |
-| `npm run check` | TypeScript (`tsc --noEmit` + scripts project) |
+| `npm run check` | TypeScript (`tsc --noEmit` on app, scripts, and tests) |
 | `npm run lint` / `npm run fix` | Biome check / auto-fix |
 | `npm test` | Vitest unit tests |
 | `npm run test:fuzz` | Playwright fuzz smoke (pointer + keyboard, `?ea`, 30s each; `npm run test:fuzz -- 90` to change) |
 | `npm run test:fuzz:quick` | 10s fuzz |
 | `npm run test:fuzz:long` | 300s fuzz |
-| `npm run icons` | Regenerate PWA icons (+ placeholder screenshots) |
+| `npm run icons` | Regenerate PWA icons; seed missing screenshots, preserve existing ones |
 | `npm run rename` | Sim-level fork/rename (`--id`, `--name`) |
 | `npm run scaffold-screens` | Emit N screens (`--screens Intro,Lab`) |
 | `npm run release` | `check && lint && build && test`, then version patch + push tags |
