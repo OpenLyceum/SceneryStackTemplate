@@ -15,19 +15,18 @@ Any change to that policy belongs in Baton and its compliance rules before propa
 
 ## Local Node and npm policy
 
-### 2. Align local Node selection with CI's Node 24
+### 2. Align local Node selection with CI's Node 26 (done)
 
-The template declares `engines.node: ">=24"`, while CI uses Node 24. A possible
-improvement is a tighter `">=24 <25"` range and a root `.nvmrc` containing `24`.
-Baton's current compliance rule accepts `">=24"` (or `">=24.0.0"`) only, so changing
-the template alone would fail the fleet audit. Review the policy in Baton first,
-update its compliance rule and template manifest together, then propagate approved
-package/config changes through the drift checker.
+The template declares `engines.node: ">=26"` (matching CI's Node 26) and a
+`devEngines.runtime` entry with `onFail: "error"`, so npm refuses to install or run
+scripts on an older local Node. Baton's compliance rule and template manifest require
+both, so propagate any change through Baton first. No `.nvmrc` is needed; select the
+version locally with `nvm alias default 26`.
 
 ### 9. Decide whether to add a fleet `.npmrc`
 
-The template has no root `.npmrc`. Consider `engine-strict=true` alongside #2, and
-make an explicit decision on `fund` and `save-exact` before introducing defaults.
+The template has no root `.npmrc`. `devEngines` (#2) already enforces the local Node version, so
+`engine-strict` is unnecessary; make an explicit decision on `fund` and `save-exact` before introducing defaults.
 A new template-owned file also needs Baton's root-file allowlist and template manifest
 updated before it can be propagated. Keep the decision centralized rather than
 adding different npm policies in individual simulations.
