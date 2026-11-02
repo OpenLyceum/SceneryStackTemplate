@@ -117,6 +117,10 @@ the file in backticks and the reason, e.g. ``- `tests/setup.ts`: adds a WebGPU m
 checker treats a file named there as approved. Fix template-owned files **here first**, then
 propagate — never hand-edit one in a single sim.
 
+Toolkit exports that only some sims use (`SimButtonOptions.ts`, `SimControlOptions.ts`, the
+`memoryLeak.ts` helpers) carry a `@public` JSDoc tag so dead-code checkers such as knip do not
+report them as unused in the sims that skip them. Tag any new toolkit export the same way.
+
 ### `package.json` overrides
 
 JSON cannot carry comments, so the rationale for forced transitive pins lives here. Prefer

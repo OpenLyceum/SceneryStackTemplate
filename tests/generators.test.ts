@@ -5,7 +5,6 @@ import { basename, dirname, join, relative } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 const PROJECT_ROOT = process.cwd();
-const TSX_IMPORT = import.meta.resolve("tsx");
 const FIXTURE_ENTRIES = [
   "AGENTS.md",
   "README.md",
@@ -37,7 +36,7 @@ function createFixture(): string {
 }
 
 function runScript(fixture: string, script: string, args: string[]) {
-  return spawnSync(process.execPath, ["--import", TSX_IMPORT, join(fixture, "scripts", script), ...args], {
+  return spawnSync(process.execPath, [join(fixture, "scripts", script), ...args], {
     cwd: fixture,
     encoding: "utf8",
   });
