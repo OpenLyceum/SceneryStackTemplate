@@ -31,24 +31,36 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { parseArgs } from "node:util";
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
 
-function getArg(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
-
-const newId = getArg("--id");
-const newName = getArg("--name");
-
-if (!(newId && newName)) {
-  console.error('Usage: npm run rename -- --id <kebab-id> --name "<Display Name>"');
+function usage(): never {
+  console.error('Usage: npm run rename -- --id <kebab-id> --name "<Display Name>" [--prefix <Pascal>]');
   console.error("");
   console.error("Examples:");
   console.error('  npm run rename -- --id friction --name "Friction"');
   console.error('  npm run rename -- --id wave-interference --name "Wave Interference"');
   process.exit(1);
+}
+
+function readArgs(): { id?: string | undefined; name?: string | undefined; prefix?: string | undefined } {
+  try {
+    return parseArgs({
+      options: { id: { type: "string" }, name: { type: "string" }, prefix: { type: "string" } },
+    }).values;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return usage();
+  }
+}
+
+const args = readArgs();
+const newId = args.id;
+const newName = args.name;
+
+if (!(newId && newName)) {
+  usage();
 }
 
 if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(newId)) {
@@ -70,7 +82,7 @@ function displayNameToPrefix(displayName: string): string {
 
 // PascalCase class prefix: "Wave Interference" → "WaveInterference",
 // "Faraday's Law" → "FaradaysLaw".
-const newPrefix = getArg("--prefix") ?? displayNameToPrefix(newName);
+const newPrefix = args.prefix ?? displayNameToPrefix(newName);
 
 if (!/^[A-Z][A-Za-z0-9]*$/.test(newPrefix)) {
   console.error(

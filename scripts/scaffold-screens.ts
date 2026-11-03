@@ -24,16 +24,25 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import { parseArgs } from "node:util";
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
 
-function getArg(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
-
-function hasFlag(flag: string): boolean {
-  return process.argv.includes(flag);
+function readArgs(): { screens?: string | undefined; prefix?: string | undefined; sharedModel: boolean } {
+  try {
+    const { values } = parseArgs({
+      options: {
+        screens: { type: "string" },
+        prefix: { type: "string" },
+        "shared-model": { type: "boolean", default: false },
+      },
+    });
+    return { screens: values.screens, prefix: values.prefix, sharedModel: values["shared-model"] };
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    console.error("Usage: npm run scaffold-screens -- [--screens <list>] [--prefix <Pascal>] [--shared-model]");
+    process.exit(1);
+  }
 }
 
 const ROOT = resolve(process.cwd());
@@ -641,13 +650,14 @@ function wireSharedModel(screens: ScreenSpec[]): void {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function main(): void {
-  const screenList = parseScreens(getArg("--screens"));
+  const args = readArgs();
+  const screenList = parseScreens(args.screens);
   if (screenList.length === 0) {
     console.error("At least one screen must be specified.");
     process.exit(1);
   }
-  const prefix = detectPrefix(getArg("--prefix"));
-  const sharedModel = hasFlag("--shared-model");
+  const prefix = detectPrefix(args.prefix);
+  const sharedModel = args.sharedModel;
   const protoDir = findPrototypeDir();
 
   // Validate unique kebabs / keys
