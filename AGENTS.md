@@ -121,11 +121,21 @@ Toolkit exports that only some sims use (`SimButtonOptions.ts`, `SimControlOptio
 `memoryLeak.ts` helpers) carry a `@public` JSDoc tag so dead-code checkers such as knip do not
 report them as unused in the sims that skip them. Tag any new toolkit export the same way.
 
-Knip is a manual check during adoption. Its Vite/Vitest/Playwright plugins discover the
-standard entry points; `knip.json` defines the project scope. Optional toolkit files and
-constants may appear in the report until a fork uses them. Review findings before cleanup;
-do not add all source files as entries or use blanket ignores to silence reports. See
+Knip is a manual check during adoption (`npm run check:unused` / `npm run knip`). Its
+Vite/Vitest/Playwright plugins discover the standard entry points; `knip.json` defines the
+project scope. Optional toolkit files and constants may appear in the report until a fork
+uses them. Review findings before cleanup; do not add all source files as entries or use
+blanket ignores to silence reports. See
 [Baton/doc/knip.md](https://github.com/OpenLyceum/Baton/blob/main/doc/knip.md).
+
+Architecture boundaries are a separate manual check (`npm run check:architecture`) via
+dependency-cruiser: no model→view / preferences-view imports; no `common/` /
+`preferences/` / `i18n/` → screen imports; no `assets/` → app imports; no cross-screen
+imports; no `src/` → `tests/` or npm devDependencies; no cycles; warnings for
+model→`scenery`/`sun` value imports and orphan modules. The template owns
+`.dependency-cruiser.cjs`; a sim may add `.dependency-cruiser.local.cjs` for documented
+excludes or extra rules. See
+[Baton/doc/dependency-cruiser.md](https://github.com/OpenLyceum/Baton/blob/main/doc/dependency-cruiser.md).
 
 ### `package.json` overrides
 
