@@ -120,10 +120,13 @@ propagate — never hand-edit one in a single sim.
 Toolkit exports that only some sims use (`SimButtonOptions.ts`, `SimControlOptions.ts`, the
 `memoryLeak.ts` helpers) carry a `@public` JSDoc tag so dead-code checkers such as knip do not
 report them as unused in the sims that skip them. Tag any new toolkit export the same way.
+For an unused app-local export, remove `export` instead of tagging. For a seam that exists only
+for tests, use `@internal` (honored in Knip production mode) — not `@public`.
 
 Knip is a manual check during adoption (`npm run check:unused` / `npm run knip`). Its
 Vite/Vitest/Playwright plugins discover the standard entry points; `knip.json` defines the
-project scope. Optional toolkit files and constants may appear in the report until a fork
+project scope and enables entry-export checks, circular-dependency reporting, and failing
+config hints. Optional toolkit files and constants may appear in the report until a fork
 uses them. Review findings before cleanup; do not add all source files as entries or use
 blanket ignores to silence reports. See
 [Baton/doc/knip.md](https://github.com/OpenLyceum/Baton/blob/main/doc/knip.md).
