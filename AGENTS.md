@@ -128,14 +128,20 @@ uses them. Review findings before cleanup; do not add all source files as entrie
 blanket ignores to silence reports. See
 [Baton/doc/knip.md](https://github.com/OpenLyceum/Baton/blob/main/doc/knip.md).
 
-Architecture boundaries are a separate manual check (`npm run check:architecture`) via
-dependency-cruiser: no model→view / preferences-view imports; no `common/` /
-`preferences/` / `i18n/` → screen imports; no `assets/` → app imports; no cross-screen
-imports; no `src/` → `tests/` or npm devDependencies; no cycles; warnings for
-model→`scenery`/`sun` value imports and orphan modules. The template owns
-`.dependency-cruiser.cjs`; a sim may add `.dependency-cruiser.local.cjs` for documented
-excludes or extra rules. See
-[Baton/doc/dependency-cruiser.md](https://github.com/OpenLyceum/Baton/blob/main/doc/dependency-cruiser.md).
+Architecture boundaries are enforced by `npm run check:architecture` in CI, pre-push,
+and release. Run `npm run test:architecture` when changing the rules; the CLI fixtures
+must continue to reject forbidden graphs and allow legitimate imports. In addition to
+model/view, shared/screen, cross-screen and cycle rules, the config rejects unresolved
+or undeclared packages, Node built-ins in browser code, imports into tooling, and imports
+back into bootstrap modules. Model→view reachability includes helpers and re-exports;
+model→`scenery`/`sun` value imports are errors (type-only imports are allowed).
+
+The template owns `.dependency-cruiser.cjs` and `tests/architecture.test.mjs`.
+Local overlays may add uniquely named rules. Exclusions require a
+`.dependency-cruiser.local.cjs` carve-out; `omitRules` requires a carve-out naming each
+omitted rule. Other parser/resolver/traversal overrides are rejected, and overlay errors
+fail the check. Do not silence findings with broad exclusions or invented carve-outs.
+See [Baton/doc/dependency-cruiser.md](https://github.com/OpenLyceum/Baton/blob/main/doc/dependency-cruiser.md).
 
 ### `package.json` overrides
 
@@ -187,6 +193,8 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run build:single` | Single-file build mode |
 | `npm run check` | TypeScript (`tsc --noEmit` on app, scripts, and tests) |
 | `npm run lint` / `npm run fix` | Biome check / auto-fix |
+| `npm run check:architecture` | Enforced dependency boundaries and runtime cycles |
+| `npm run test:architecture` | Architecture rule regression fixtures |
 | `npm run knip` | Manual unused-file, export, and dependency report |
 | `npm test` | Vitest unit tests |
 | `npm run test:fuzz` | Playwright fuzz smoke (pointer + keyboard, `?ea`, 30s each; `npm run test:fuzz -- 90` to change) |
@@ -195,7 +203,7 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run icons` | Regenerate PWA icons; seed missing screenshots, preserve existing ones |
 | `npm run rename` | Sim-level fork/rename (`--id`, `--name`) |
 | `npm run scaffold-screens` | Emit N screens (`--screens Intro,Lab`) |
-| `npm run release` | `check && lint && build && test`, then version patch + push tags |
+| `npm run release` | `check && lint && check:architecture && build && test`, then version patch + push tags |
 
 `src/init.ts` reads `version` from `package.json`, so the patch bump shows up in the About dialog
 without a second edit.
