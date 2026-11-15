@@ -124,11 +124,12 @@ For an unused app-local export, remove `export` instead of tagging. For an inten
 for tests, document why direct testing is needed and use `@internal` (honored in Knip production mode).
 Review production findings first; do not blanket-tag every export used only by tests.
 
-Knip runs in a separate advisory CI job during adoption (`npm run check:unused` / `npm run knip` locally).
+Knip runs in a separate required CI job after reviewing both default and production baselines (`npm run check:unused` / `npm run knip` locally).
 Its Vite/Vitest/Playwright plugins discover the standard entry points; `knip.json` defines the
 project scope (`src/**/*.ts!` includes production mode) and enables entry-export checks,
-circular-dependency reporting, and failing config hints. Optional toolkit files and constants may appear until a fork
-uses them. Review findings before cleanup; do not add all source files as entries or use
+circular-dependency reporting, and failing config hints. The template declares only its three documented
+starter toolkit modules as additional production entries; forks must use or remove unused starters.
+Review findings before cleanup; do not add all source files as entries or use
 blanket ignores to silence reports. See
 [Baton/doc/knip.md](https://github.com/OpenLyceum/Baton/blob/main/doc/knip.md).
 
