@@ -140,6 +140,12 @@ back into bootstrap modules. Model→view reachability includes helpers and re-e
 model→`scenery`/`sun` value imports are errors (type-only imports are allowed).
 
 The template owns `.dependency-cruiser.cjs` and `tests/architecture.test.mjs`.
+Browser package resolution, duplicate dependency-category errors and installed-package
+deprecation warnings are enabled. Models must not value-import `*Colors.ts`; views map
+material/track identities to colors. Source modules must be reachable from `main.ts`,
+except ambient declarations. In this template package only, `SimControlOptions.ts`,
+`SimPanel.ts` and `TimeModel.ts` are additional public starter entry points. Forks must
+use or remove unused starters. Put test-only reference implementations under `tests/`.
 Local overlays may add uniquely named rules. Exclusions require a
 `.dependency-cruiser.local.cjs` carve-out; `omitRules` requires a carve-out naming each
 omitted rule. Other parser/resolver/traversal overrides are rejected, and overlay errors
