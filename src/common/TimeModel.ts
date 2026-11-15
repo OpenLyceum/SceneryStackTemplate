@@ -46,6 +46,7 @@
 
 import { BooleanProperty, NumberProperty } from "scenerystack/axon";
 
+/** Composable play/pause + elapsed-time model for animated sims. @public */
 export class TimeModel {
   /** Whether the simulation clock is running. Bind to TimeControlNode. */
   public readonly isPlayingProperty: BooleanProperty;

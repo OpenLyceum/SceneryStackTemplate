@@ -31,8 +31,10 @@ import { Panel, type PanelOptions } from "scenerystack/sun";
 import SimColors from "../SimColors.js";
 import { PANEL_CORNER_RADIUS } from "../SimConstants.js";
 
+/** @public */
 export type SimPanelOptions = PanelOptions;
 
+/** Pre-themed Panel wrapper for control panels and info boxes. @public */
 export class SimPanel extends Panel {
   public constructor(content: Node, providedOptions?: SimPanelOptions) {
     const options = optionize<SimPanelOptions, EmptySelfOptions, PanelOptions>()(

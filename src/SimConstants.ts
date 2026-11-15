@@ -24,7 +24,10 @@ import SimNamespace from "./SimNamespace.js";
 /** Margin between the screen edge and edge-anchored controls (e.g. Reset All). */
 export const SCREEN_VIEW_MARGIN = 20;
 
-/** Corner radius shared by control panels and dialogs. */
+/**
+ * Corner radius shared by control panels and dialogs.
+ * @public
+ */
 export const PANEL_CORNER_RADIUS = 6;
 
 // ── Physics / model defaults (SI units) ───────────────────────────────────────
