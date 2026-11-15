@@ -121,6 +121,12 @@ Toolkit exports that only some sims use (`SimButtonOptions.ts`, `SimControlOptio
 `memoryLeak.ts` helpers) carry a `@public` JSDoc tag so dead-code checkers such as knip do not
 report them as unused in the sims that skip them. Tag any new toolkit export the same way.
 
+Knip is a manual check during adoption. Its Vite/Vitest/Playwright plugins discover the
+standard entry points; `knip.json` defines the project scope. Optional toolkit files and
+constants may appear in the report until a fork uses them. Review findings before cleanup;
+do not add all source files as entries or use blanket ignores to silence reports. See
+[Baton/doc/knip.md](https://github.com/OpenLyceum/Baton/blob/main/doc/knip.md).
+
 ### `package.json` overrides
 
 JSON cannot carry comments, so the rationale for forced transitive pins lives here. Prefer
@@ -171,6 +177,7 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run build:single` | Single-file build mode |
 | `npm run check` | TypeScript (`tsc --noEmit` on app, scripts, and tests) |
 | `npm run lint` / `npm run fix` | Biome check / auto-fix |
+| `npm run knip` | Manual unused-file, export, and dependency report |
 | `npm test` | Vitest unit tests |
 | `npm run test:fuzz` | Playwright fuzz smoke (pointer + keyboard, `?ea`, 30s each; `npm run test:fuzz -- 90` to change) |
 | `npm run test:fuzz:quick` | 10s fuzz |
