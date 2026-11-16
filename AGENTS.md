@@ -141,7 +141,7 @@ or undeclared packages, Node built-ins in browser code, imports into tooling, an
 back into bootstrap modules. Model→view reachability includes helpers and re-exports;
 model→`scenery`/`sun` value imports are errors (type-only imports are allowed).
 
-The template owns `.dependency-cruiser.cjs` and `tests/architecture.test.mjs`.
+The template owns `.dependency-cruiser.cjs` and `tests/architecture.node-test.ts`.
 Browser package resolution, duplicate dependency-category errors and installed-package
 deprecation warnings are enabled. Models must not value-import `*Colors.ts`; views map
 material/track identities to colors. Source modules must be reachable from `main.ts`,
@@ -153,6 +153,14 @@ Local overlays may add uniquely named rules. Exclusions require a
 omitted rule. Other parser/resolver/traversal overrides are rejected, and overlay errors
 fail the check. Do not silence findings with broad exclusions or invented carve-outs.
 See [Baton/doc/dependency-cruiser.md](https://github.com/OpenLyceum/Baton/blob/main/doc/dependency-cruiser.md).
+
+The template also owns `biome-plugins/`, the GritQL lint plugins that turn written
+conventions into Biome diagnostics. `biome.json` loads them for `src/**` only.
+`no-native-tofixed.grit` flags `Number.prototype.toFixed` (use `toFixed(value, digits)`
+from `scenerystack/dot`). For a deliberate exception, suppress the call with
+`// biome-ignore lint/plugin/no-native-tofixed: <reason>`. `npm run lint` passes
+`--error-on-warnings`, so every `"warn"` rule and plugin diagnostic blocks CI and pre-push.
+Fix it or suppress it with a reason.
 
 ### `package.json` overrides
 
@@ -203,7 +211,7 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run build` | Type-check + production build |
 | `npm run build:single` | Single-file build mode |
 | `npm run check` | TypeScript (`tsc --noEmit` on app, scripts, and tests) |
-| `npm run lint` / `npm run fix` | Biome check / auto-fix |
+| `npm run lint` / `npm run fix` | Biome check (`--error-on-warnings`, so warnings fail CI and pre-push) / auto-fix |
 | `npm run check:architecture` | Enforced dependency boundaries and runtime cycles |
 | `npm run test:architecture` | Architecture rule regression fixtures |
 | `npm run knip` | Manual unused-file, export, and dependency report |
