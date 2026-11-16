@@ -189,7 +189,7 @@ function replaceAll(str: string, search: string, replacement: string): string {
 function transformPrototype(text: string, screen: ScreenSpec, simPrefix: string): string {
   // Longest class names first
   let out = text;
-  const pairs: Array<[string, string]> = [
+  const pairs: [string, string][] = [
     ["SimScreenSummaryContent", `${screen.pascal}ScreenSummaryContent`],
     ["SimKeyboardHelpContent", `${screen.pascal}KeyboardHelpContent`],
     ["SimScreenView", `${screen.pascal}ScreenView`],
@@ -532,7 +532,7 @@ function updateDocs(screens: ScreenSpec[], simPrefix: string): void {
   }
 
   // Longest names first so shorter ones do not eat their prefixes.
-  const pairs: Array<[string, string]> = [
+  const pairs: [string, string][] = [
     ["src/sim-screen", `src/${first.kebab}`],
     ["sim-screen/", `${first.kebab}/`],
     ["SimScreenSummaryContent", `${first.pascal}ScreenSummaryContent`],
@@ -548,7 +548,7 @@ function updateDocs(screens: ScreenSpec[], simPrefix: string): void {
   // Template-only prose in doc/multi-screen.md: token substitution alone would leave a
   // fork claiming to ship an un-scaffolded prototype.
   const screenList = screens.map((s) => `\`src/${s.kebab}/\``).join(", ");
-  const prose: Array<[string, string]> = [
+  const prose: [string, string][] = [
     [
       "This template ships as a **single-screen** prototype (`src/sim-screen/`). New sims\nshould call `npm run scaffold-screens` (or `Baton/scripts/create-sim.sh`) so screen\nfolders use fleet naming (`src/intro/`, not `intro-screen/`). This guide covers the\narchitecture and how to extend an existing sim by hand.",
       `This sim was scaffolded by \`npm run scaffold-screens\` into ${screenList} (fleet naming:\nkebab folders with no \`-screen\` suffix). This guide covers the architecture and how to add\nanother screen by hand.`,

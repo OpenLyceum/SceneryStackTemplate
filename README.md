@@ -35,7 +35,7 @@ npm start        # dev server → http://localhost:5173
 | `npm run test:fuzz:quick` | Shorter fuzz smoke (10s) |
 | `npm run test:fuzz:long` | Longer fuzz smoke (300s) |
 | `npm run check` | TypeScript type check |
-| `npm run lint` | Biome lint check |
+| `npm run lint` | Biome check (warnings fail too) |
 | `npm run check:unused` / `npm run knip` | Report unused files, exports, and dependencies (manual check) |
 | `npm run check:architecture` | dependency-cruiser layer and cycle rules on `src/` (manual check) |
 | `npm run format` | Auto-format all files |

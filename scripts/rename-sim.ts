@@ -120,7 +120,7 @@ const TEXT_EXTS = new Set([".ts", ".js", ".json", ".html", ".md", ".css", ".svg"
 //   4. Keep identifier entries longest-first as defense in depth.
 
 /** Identifier tokens: search is matched with word boundaries (`\b…\b`). */
-const IDENTIFIER_REPLACEMENTS: ReadonlyArray<[string, string]> = [
+const IDENTIFIER_REPLACEMENTS: readonly [string, string][] = [
   // Shared / preferences (not per-screen)
   ["SimPreferencesModel", `${newPrefix}PreferencesModel`],
   ["SimPreferencesNode", `${newPrefix}PreferencesNode`],
@@ -144,7 +144,7 @@ const IDENTIFIER_REPLACEMENTS: ReadonlyArray<[string, string]> = [
 ];
 
 /** Display / package strings: plain substring replace (longest first). */
-const STRING_REPLACEMENTS: ReadonlyArray<[string, string]> = [
+const STRING_REPLACEMENTS: readonly [string, string][] = [
   ["SceneryStack Template", newName],
   ["Plantilla de Simulación", newName],
   ["Modèle de Simulation", newName],
