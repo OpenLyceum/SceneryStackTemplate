@@ -157,8 +157,15 @@ See [Baton/doc/dependency-cruiser.md](https://github.com/OpenLyceum/Baton/blob/m
 The template also owns `biome-plugins/`, the GritQL lint plugins that turn written
 conventions into Biome diagnostics. `biome.json` loads them for `src/**` only.
 `no-native-tofixed.grit` flags `Number.prototype.toFixed` (use `toFixed(value, digits)`
-from `scenerystack/dot`). For a deliberate exception, suppress the call with
-`// biome-ignore lint/plugin/no-native-tofixed: <reason>`. `npm run lint` passes
+from `scenerystack/dot`). `no-math-random.grit` flags `Math.random()` (use `dotRandom`).
+`no-hardcoded-text.grit` flags display words written as literals in `new Text(...)` /
+`new RichText(...)` (use a `*StringProperty`; symbols, units, formulas and tags pass).
+`no-inline-color.grit` flags `new Color(...)` with only literal arguments and string
+`fill`/`stroke` values outside `*Colors.ts` (computed colors and invisible hit areas pass).
+`tests/biome-plugins.node-test.ts` holds positive and negative fixtures for each, and runs
+under `npm run test:architecture`. Add a fixture for any false positive before changing a pattern.
+For a deliberate exception, suppress the line with
+`// biome-ignore lint/plugin/<rule-name>: <reason>`. `npm run lint` passes
 `--error-on-warnings`, so every `"warn"` rule and plugin diagnostic blocks CI and pre-push.
 Fix it or suppress it with a reason.
 
