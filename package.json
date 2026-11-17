@@ -37,6 +37,7 @@
     "test:fuzz": "node scripts/test-fuzz.ts",
     "test:fuzz:quick": "node scripts/test-fuzz.ts 10",
     "test:fuzz:long": "node scripts/test-fuzz.ts 300",
+    "test:soak": "npx playwright test tests/browser/memory-soak.spec.ts",
     "icons": "node scripts/generate-icons.ts",
     "rename": "node scripts/rename-sim.ts",
     "scaffold-screens": "node scripts/scaffold-screens.ts",
