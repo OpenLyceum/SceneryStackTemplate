@@ -209,6 +209,8 @@ Fleet-standard Vitest layout (keep when forking):
     `npx vitest run --sequence.seed=<seed>` (the seed is printed at the top of the run).
   - `restoreMocks` / `unstubGlobals` / `unstubEnvs`: nothing a test stubs leaks into the next one.
   - `retry: 0`: fix a flaky test; never add retries.
+  - Vitest globals are off, and `tsconfig.test.json` does not load `vitest/globals` types: import
+    `describe` / `it` / `expect` / `vi` from `"vitest"` in every test file, or `npm run check` fails.
   - `tests/setup.ts` fails any test that writes to `console.error` or `console.warn`. A test that
     expects a warning silences it: `vi.spyOn(console, "warn").mockImplementation(() => undefined)`.
 - Optional: `npm run test:fuzz` / `test:fuzz:quick` / `test:fuzz:long` (not part of default CI).
@@ -321,6 +323,16 @@ malformed value fails the build.
 | `allowPermissions` | Any of `camera`, `microphone`, `geolocation`; each becomes `<feature>=(self)` in `Permissions-Policy` (a locked policy logs a console error per request and fails fuzz) |
 | `connectSrc` | Extra bare `https://` origins appended to CSP `connect-src` for runtime fetches |
 | `precacheExtensions` | Extra file extensions for the Workbox precache (e.g. `wav`, `mp3`) |
+
+Security headers (CSP, Permissions-Policy, COOP/COEP, X-Frame-Options) are sent by `npm start`
+and `npm run preview`. GitHub Pages cannot send headers, so `npm run build` also writes the CSP
+into `dist/index.html` as a `<meta http-equiv="Content-Security-Policy">` right after
+`<meta charset>`. It carries every directive except `frame-ancestors`, which a meta CSP ignores,
+so deployed sims stay embeddable in iframes. The other headers have no meta form and do not apply
+on Pages (`crossOriginIsolated` is false there). `--mode single` gets no meta CSP, because
+`'self'` matches nothing for a file opened from disk or pasted into an LMS. To fuzz the deployed
+policy, serve `dist/` with a server that sends no headers (e.g.
+`python3 -m http.server 5199 -d dist`) and run `FUZZ_PORT=5199 npm run test:fuzz:quick`.
 
 The production build also fails on any bundler warning raised by project code (for example a
 direct `eval`, or an import that resolves to `undefined`). Warnings from `node_modules` stay
