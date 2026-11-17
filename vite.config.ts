@@ -120,7 +120,9 @@ const cspDirectives: readonly string[] = [
   // blob: for fetch inside workers
   // plus any runtime data origins the sim declares in sim.config.json
   ["connect-src 'self' blob:", ...simConfig.connectSrc].join(" "),
-  "font-src 'self'",
+  // data: because the build (never the dev server) inlines assets under 4 kB as data: URIs,
+  // e.g. KaTeX's small .woff2 fonts in the built CSS. A data: URI cannot reach another origin.
+  "font-src 'self' data:",
   "object-src 'none'",
   "base-uri 'self'",
   // Header only: browsers ignore frame-ancestors in a <meta> CSP (and log a console
