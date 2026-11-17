@@ -188,7 +188,7 @@ Fleet-standard Vitest layout (keep when forking):
 
 | Path | Purpose |
 |---|---|
-| `vitest.config.ts` | `happy-dom` environment; `setupFiles: ["./tests/setup.ts"]`; `execArgv: ["--expose-gc"]` |
+| `vitest.config.ts` | `happy-dom` environment; `setupFiles: ["./tests/setup.ts"]`; `execArgv: ["--expose-gc"]`; drift guards (below) |
 | `tests/setup.ts` | Canvas / AudioContext mocks + `init({ name: "…" })` before SceneryStack imports |
 | `tests/TimeModel.test.ts` | Sample model unit tests — replace with real physics tests |
 | `tests/memory-leak.test.ts` | Lists the sim's disposables for `describeDisposalLeaks()` (collected after dispose, repeated cycles; opt-in double dispose) |
@@ -203,6 +203,14 @@ Fleet-standard Vitest layout (keep when forking):
 - Add every model/view object that adds/removes nodes or links Properties at runtime to the
   `describeDisposalLeaks([...])` list in `memory-leak.test.ts`; put sim-specific leak scenarios
   after it using `forceGC()` from `tests/helpers/memoryLeak.ts` (never a local copy).
+- Drift guards (template-owned, so they apply fleet-wide):
+  - `expect.requireAssertions`: a test with no `expect()` call fails.
+  - `sequence.shuffle`: files and tests run in random order. Reproduce a failing order with
+    `npx vitest run --sequence.seed=<seed>` (the seed is printed at the top of the run).
+  - `restoreMocks` / `unstubGlobals` / `unstubEnvs`: nothing a test stubs leaks into the next one.
+  - `retry: 0`: fix a flaky test; never add retries.
+  - `tests/setup.ts` fails any test that writes to `console.error` or `console.warn`. A test that
+    expects a warning silences it: `vi.spyOn(console, "warn").mockImplementation(() => undefined)`.
 - Optional: `npm run test:fuzz` / `test:fuzz:quick` / `test:fuzz:long` (not part of default CI).
   Duration is 30s by default; override with `npm run test:fuzz -- 90` or `FUZZ_DURATION=90`.
 
@@ -263,7 +271,7 @@ After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSI
 1. **Rename** — replace `scenerystack-template` / `SceneryStack Template` / `Sim` prefix in `init.ts`, `brand.ts`, `package.json` (name, description, keywords, repository.url), Colors/Constants/Namespace/Panel/ButtonOptions/ControlOptions/Preferences
 2. **Screens** — run `scaffold-screens` or mirror `sim-screen/` into kebab folders
 3. **Locale** — add `strings_XX.json`, register in `StringManager`, add locale to `init.ts` `availableLocales`
-4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`; match theme color in `index.html` / `vite.config.ts`.
+4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`; match theme color in `index.html` / `sim.config.json`.
    Once `assets/screenshot.png` exists (Baton `generate-screenshots.sh`), `npm run icons -- --screenshots-from-assets`
    replaces the placeholder PWA screenshots
 5. **Colors** — edit `*Colors.ts` (`default` + `projector` profiles per property), one
@@ -299,6 +307,24 @@ Summary:
 | **`Baton/scripts/check-template-drift.sh`** | Keeping forks in sync with template improvements |
 
 See `doc/multi-screen.md` → "Using this template beyond a direct copy" for details.
+
+## Build configuration
+
+`vite.config.ts` is template-owned (drift-checked); do not edit it in a sim. Everything a sim may
+vary lives in `sim.config.json`, which `vite.config.ts` validates strictly. An unknown key or a
+malformed value fails the build.
+
+| Key | Effect |
+|---|---|
+| `title` / `shortName` | PWA `name` (and screenshot labels) / `short_name` (30 max; launchers truncate past about 12) |
+| `themeColor` / `backgroundColor` | PWA colors, `#rrggbb` |
+| `allowPermissions` | Any of `camera`, `microphone`, `geolocation`; each becomes `<feature>=(self)` in `Permissions-Policy` (a locked policy logs a console error per request and fails fuzz) |
+| `connectSrc` | Extra bare `https://` origins appended to CSP `connect-src` for runtime fetches |
+| `precacheExtensions` | Extra file extensions for the Workbox precache (e.g. `wav`, `mp3`) |
+
+The production build also fails on any bundler warning raised by project code (for example a
+direct `eval`, or an import that resolves to `undefined`). Warnings from `node_modules` stay
+warnings. A need outside these keys is a template change or a carve-out, not a local edit.
 
 ## PWA
 
