@@ -148,19 +148,32 @@ describe("template generators", () => {
     expect(prefs).not.toContain("exampleToggle");
     expect(prefs).toContain("No sim-specific preferences yet");
 
+    const prefsNode = readFileSync(join(fixture, "src", "preferences", "WaveLabPreferencesNode.ts"), "utf8");
+    expect(prefsNode).toContain("WaveLabPanel");
+    expect(prefsNode).toContain('fill: "transparent"');
+
     const strings = readFileSync(join(fixture, "src", "i18n", "strings_en.json"), "utf8");
     expect(strings).not.toContain("exampleToggle");
     expect(strings).not.toContain("exampleControl");
 
     const view = readFileSync(join(fixture, "src", "wave-lab", "view", "WaveLabScreenView.ts"), "utf8");
     expect(view).not.toContain("placeholderText");
-    expect(view).not.toContain("scenerystack-template");
     expect(view).not.toContain("exampleControl");
 
     expect(existsSync(join(fixture, "src", "common", "TimeModel.ts"))).toBe(false);
     expect(existsSync(join(fixture, "src", "common", "WaveLabControlOptions.ts"))).toBe(false);
     expect(existsSync(join(fixture, "src", "common", "WaveLabPanel.ts"))).toBe(true);
     expect(existsSync(join(fixture, "src", "common", "WaveLabButtonOptions.ts"))).toBe(true);
+
+    const knip = JSON.parse(readFileSync(join(fixture, "knip.json"), "utf8")) as { entry?: string[] };
+    expect((knip.entry ?? []).some((entry) => /TimeModel|Panel|ControlOptions/.test(entry))).toBe(false);
+
+    const qp = readFileSync(join(fixture, "src", "preferences", "waveLabQueryParameters.ts"), "utf8");
+    expect(qp).not.toContain("export default");
+
+    const sm = readFileSync(join(fixture, "src", "i18n", "StringManager.ts"), "utf8");
+    expect(sm).not.toMatch(/export type \w+A11yStrings/);
+    expect(sm).not.toMatch(/export type \w+PreferenceStrings/);
 
     const agents = readFileSync(join(fixture, "AGENTS.md"), "utf8");
     expect(agents).toContain("# AGENTS.md — Wave Lab");
@@ -173,6 +186,20 @@ describe("template generators", () => {
     expect(readFileSync(join(fixture, "doc", "implementation-notes.md"), "utf8")).toContain(
       "# Implementation notes — Wave Lab",
     );
+
+    const readme = readFileSync(join(fixture, "README.md"), "utf8");
+    expect(readme).not.toContain("npm run rename");
+    expect(readme).not.toContain("npm run scaffold-screens");
+  });
+
+  it("keeps the placeholder package-name guard intact after rename-only", () => {
+    const fixture = createFixture();
+    expectSuccess(runScript(fixture, "rename-sim.ts", ["--id", "wave-lab", "--name", "Wave Lab"]));
+
+    const view = readFileSync(join(fixture, "src", "sim-screen", "view", "SimScreenView.ts"), "utf8");
+    expect(view).toContain('["scenerystack", "template"].join("-")');
+    expect(view).not.toMatch(/packageName === ["']wave-lab["']/);
+    expect(view).toContain("placeholderText");
   });
 
   it("keeps SharedModel free of exampleEnabledProperty and supports multi-screen", () => {
@@ -204,6 +231,18 @@ describe("template generators", () => {
     const model = readFileSync(join(fixture, "src", "wave-lab", "model", "WaveLabModel.ts"), "utf8");
     expect(model).toContain("new TimeModel()");
     expect(model).toContain("this.timer.step");
+    expect(model).toContain("this.timer.dispose()");
+
+    const prefsNode = readFileSync(join(fixture, "src", "preferences", "WaveLabPreferencesNode.ts"), "utf8");
+    expect(prefsNode).toContain("WAVE_LAB_CHECKBOX_OPTIONS");
+    expect(prefsNode).toContain("WaveLabControlOptions");
+
+    const knip = JSON.parse(readFileSync(join(fixture, "knip.json"), "utf8")) as { entry?: string[] };
+    expect((knip.entry ?? []).some((entry) => /TimeModel|ControlOptions|Panel/.test(entry))).toBe(false);
+
+    const leak = readFileSync(join(fixture, "tests", "memory-leak.test.ts"), "utf8");
+    expect(leak).toContain("composed TimeModel disposal");
+    expect(leak).toContain('spyOn(model.timer, "dispose")');
   });
 
   it("leaves live-template demos intact when scaffolding without rename", () => {

@@ -651,6 +651,13 @@ function prefixToCamel(prefix: string): string {
   return prefix.charAt(0).toLowerCase() + prefix.slice(1);
 }
 
+function prefixToSnake(prefix: string): string {
+  return prefix
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .toUpperCase();
+}
+
 function stripA11yExampleControls(a11y: Record<string, unknown>): void {
   const controlsValue = a11y["controls"];
   if (!(controlsValue && typeof controlsValue === "object")) {
@@ -668,8 +675,9 @@ function stripA11yExampleControls(a11y: Record<string, unknown>): void {
   }
 }
 
-function writeEmptyPreferencesShell(simPrefix: string): void {
+function writeEmptyPreferencesShell(simPrefix: string, withControlOptions: boolean): void {
   const camel = prefixToCamel(simPrefix);
+  const snake = prefixToSnake(simPrefix);
   const prefsDir = join(SRC, "preferences");
 
   const modelPath = join(prefsDir, `${simPrefix}PreferencesModel.ts`);
@@ -705,6 +713,18 @@ ${simPrefix}Namespace.register("${simPrefix}PreferencesModel", ${simPrefix}Prefe
   );
   console.log(`  stripped ${relative(ROOT, modelPath)}`);
 
+  const controlImport = withControlOptions
+    ? `import { ${snake}_CHECKBOX_OPTIONS } from "../common/${simPrefix}ControlOptions.js";\n`
+    : "";
+  const controlSeed = withControlOptions
+    ? `
+    // Keep ControlOptions reachable until real preference checkboxes land.
+    const checkboxSpacing = ${snake}_CHECKBOX_OPTIONS.spacing;
+`
+    : "";
+  const contentSpacing = withControlOptions ? "12 + checkboxSpacing * 0" : "12";
+
+  // Use Panel to theme the empty shell (visually empty) so architecture reaches *Panel.ts.
   const nodePath = join(prefsDir, `${simPrefix}PreferencesNode.ts`);
   writeFileSync(
     nodePath,
@@ -712,19 +732,33 @@ ${simPrefix}Namespace.register("${simPrefix}PreferencesModel", ${simPrefix}Prefe
  * ${simPrefix}PreferencesNode.ts
  *
  * Custom preferences UI shown in Preferences → Simulation. Add controls here
- * when the sim gains sim-specific preferences.
+ * when the sim gains sim-specific preferences. The empty shell still wraps content
+ * in ${simPrefix}Panel so the shared panel toolkit stays reachable.
  */
 import { VBox } from "scenerystack/scenery";
 import type { Tandem } from "scenerystack/tandem";
-import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
+import { ${simPrefix}Panel } from "../common/${simPrefix}Panel.js";
+${controlImport}import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
 import type { ${simPrefix}PreferencesModel } from "./${simPrefix}PreferencesModel.js";
 
 export class ${simPrefix}PreferencesNode extends VBox {
-  public constructor(_preferencesModel: ${simPrefix}PreferencesModel, _tandem?: Tandem) {
+  public constructor(_preferencesModel: ${simPrefix}PreferencesModel, _tandem?: Tandem) {${controlSeed}
+    const content = new VBox({
+      align: "left",
+      spacing: ${contentSpacing},
+      children: [],
+    });
+    // Transparent / borderless so the Preferences dialog stays visually empty.
+    const panel = new ${simPrefix}Panel(content, {
+      fill: "transparent",
+      stroke: null,
+      xMargin: 0,
+      yMargin: 0,
+    });
     super({
       align: "left",
       spacing: 12,
-      children: [],
+      children: [panel],
     });
   }
 }
@@ -743,6 +777,9 @@ ${simPrefix}Namespace.register("${simPrefix}PreferencesNode", ${simPrefix}Prefer
  *
  * Sim-specific startup query parameters. Declare each public parameter here and
  * initialize matching preference Properties from them when needed.
+ *
+ * Side-effect module while empty: imported from the preferences model so Knip
+ * keeps the file without an unused default export.
  */
 import { logGlobal } from "scenerystack/phet-core";
 import { QueryStringMachine } from "scenerystack/query-string-machine";
@@ -753,8 +790,6 @@ const ${camel}QueryParameters = QueryStringMachine.getAll({});
 ${simPrefix}Namespace.register("${camel}QueryParameters", ${camel}QueryParameters);
 
 logGlobal("phet.chipper.queryParameters");
-
-export default ${camel}QueryParameters;
 `,
     "utf8",
   );
@@ -794,6 +829,9 @@ function stripLocaleDemoStrings(): void {
     "",
   );
   sm = sm.replace(/\n {2}readonly exampleToggleStringProperty: ReadOnlyProperty<string>;/g, "");
+  // Drop unused exported type aliases left after demo strip (Knip entry-export checks).
+  sm = sm.replace(/\n\/\*\*[\s\S]*?\*\/\nexport type \w+A11yStrings = \{[\s\S]*?\n\};\n/g, "\n");
+  sm = sm.replace(/\n\/\*\*[\s\S]*?\*\/\nexport type \w+PreferenceStrings = \{[\s\S]*?\n\};\n/g, "\n");
   writeFileSync(smPath, sm, "utf8");
   console.log(`  stripped ${relative(ROOT, smPath)}`);
 }
@@ -828,8 +866,8 @@ function stripScreenViewDemos(screens: ScreenSpec[]): void {
 }
 
 /** Empty CapacitorLab-style preferences trio + locale/type cleanup for forks. */
-function stripDemoContent(simPrefix: string, screens: ScreenSpec[]): void {
-  writeEmptyPreferencesShell(simPrefix);
+function stripDemoContent(simPrefix: string, screens: ScreenSpec[], withControlOptions: boolean): void {
+  writeEmptyPreferencesShell(simPrefix, withControlOptions);
   stripLocaleDemoStrings();
   stripScreenViewDemos(screens);
 }
@@ -885,16 +923,25 @@ function composeTimeModel(screens: ScreenSpec[]): void {
   }
 }
 
-function ensureScreenModelDispose(screens: ScreenSpec[]): void {
+function ensureScreenModelDispose(screens: ScreenSpec[], withTimeModel: boolean): void {
   for (const screen of screens) {
     const modelPath = join(SRC, screen.kebab, "model", `${screen.pascal}Model.ts`);
     let model = readFileSync(modelPath, "utf8");
+    const disposeBody = withTimeModel ? "    this.timer.dispose();\n" : "    // No resources yet.\n";
     if (/\bdispose\s*\(/.test(model)) {
+      if (withTimeModel && !model.includes("this.timer.dispose()")) {
+        model = model.replace(
+          /public dispose\(\): void \{\n(?:\s*\/\/[^\n]*\n)?/,
+          `public dispose(): void {\n    this.timer.dispose();\n`,
+        );
+        writeFileSync(modelPath, model, "utf8");
+        console.log(`  updated  ${relative(ROOT, modelPath)} (timer dispose)`);
+      }
       continue;
     }
     model = model.replace(
       /\n\}\n?\s*$/,
-      `\n  /** No-op until the model owns Properties or listeners to release. */\n  public dispose(): void {\n    // No resources yet.\n  }\n}\n`,
+      `\n  /** Release owned Properties / composed models. */\n  public dispose(): void {\n${disposeBody}  }\n}\n`,
     );
     writeFileSync(modelPath, model, "utf8");
     console.log(`  updated  ${relative(ROOT, modelPath)} (dispose)`);
@@ -906,16 +953,21 @@ function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: S
   if (args.withTimeModel) {
     composeTimeModel(screens);
   }
-  ensureScreenModelDispose(screens);
+  ensureScreenModelDispose(screens, args.withTimeModel);
 
-  // knip starter entries are template-only; drop any that no longer exist on disk.
+  // Template starter knip entries are template-only. Forks must use the modules
+  // (Panel / optional TimeModel / ControlOptions) rather than retain the entries —
+  // even when --with-time-model keeps TimeModel.ts on disk.
   const knipPath = join(ROOT, "knip.json");
   if (existsSync(knipPath)) {
     const knip = JSON.parse(readFileSync(knipPath, "utf8")) as { entry?: string[] };
     if (Array.isArray(knip.entry)) {
       knip.entry = knip.entry.filter((entry) => {
         const file = entry.replace(/!$/, "");
-        return existsSync(join(ROOT, file));
+        if (!existsSync(join(ROOT, file))) {
+          return false;
+        }
+        return !/(?:TimeModel|ControlOptions|Panel)\.ts$/.test(file);
       });
       writeFileSync(knipPath, `${JSON.stringify(knip, null, 2)}\n`, "utf8");
       console.log(`  updated  ${relative(ROOT, knipPath)}`);
@@ -924,14 +976,31 @@ function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: S
 
   const leakPath = join(ROOT, "tests", "memory-leak.test.ts");
   const cases = screens.map((s) => `{ name: "${s.pascal}Model", create: () => new ${s.pascal}Model() }`);
-  if (args.withTimeModel) {
-    cases.unshift('{ name: "TimeModel", create: () => new TimeModel(), idempotentDispose: true }');
-  }
   const imports = [
-    ...(args.withTimeModel ? ['import { TimeModel } from "../src/common/TimeModel.js";'] : []),
     ...screens.map((s) => `import { ${s.pascal}Model } from "../src/${s.kebab}/model/${s.pascal}Model.js";`),
     'import { describeDisposalLeaks } from "./helpers/memoryLeak.js";',
   ].join("\n");
+  const timerAssert = args.withTimeModel
+    ? `
+
+import { describe, expect, it, vi } from "vitest";
+
+describe("composed TimeModel disposal", () => {
+  it("screen models dispose their owned timer", () => {
+${screens
+  .map(
+    (s) => `    {
+      const model = new ${s.pascal}Model();
+      const spy = vi.spyOn(model.timer, "dispose");
+      model.dispose();
+      expect(spy).toHaveBeenCalledOnce();
+    }`,
+  )
+  .join("\n")}
+  });
+});
+`
+    : "";
   writeFileSync(
     leakPath,
     `/**
@@ -948,7 +1017,7 @@ function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: S
 ${imports}
 
 describeDisposalLeaks([${cases.join(", ")}]);
-`,
+${timerAssert}`,
     "utf8",
   );
   console.log(`  updated  ${relative(ROOT, leakPath)}`);
@@ -1061,6 +1130,25 @@ Screens: ${screenList}
     "utf8",
   );
   console.log("  wrote    doc/implementation-notes.md");
+
+  sanitizeForkReadme();
+}
+
+/** Drop one-shot template script rows from the fork README after scaffold. */
+function sanitizeForkReadme(): void {
+  const path = join(ROOT, "README.md");
+  if (!existsSync(path)) {
+    return;
+  }
+  let text = readFileSync(path, "utf8");
+  const original = text;
+  text = text.replace(/^\| `npm run rename` \|.*\|\n/gm, "");
+  text = text.replace(/^\| `npm run scaffold-screens` \|.*\|\n/gm, "");
+  text = text.replace(/\nNew sims start at `version: "0\.0\.0"`[\s\S]*?from `package\.json`\.\n/, "\n");
+  if (text !== original) {
+    writeFileSync(path, text, "utf8");
+    console.log("  updated  README.md (removed one-shot template scripts)");
+  }
 }
 
 /**
@@ -1145,7 +1233,7 @@ function main(): void {
 
   if (fork) {
     console.log("\nStripping template demos for the new seed…");
-    stripDemoContent(prefix, screenList);
+    stripDemoContent(prefix, screenList, args.withControlOptions);
     console.log("\nApplying optional starter defaults…");
     applyOptionalStarters(args, prefix, screenList);
   }

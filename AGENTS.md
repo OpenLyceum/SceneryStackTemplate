@@ -271,6 +271,12 @@ npm run scaffold-screens -- --screens Intro,Lab --shared-model
 # optional: --with-time-model / --with-control-options (both default off for forks)
 npm run fix     # required: both scripts reorder imports, which Biome then sorts
 npm run check
+# Replace the rename placeholder description with a real one-sentence package.json description
+# before drift/compliance (create-sim --description does this for the Baton path).
+Baton/scripts/check-template-drift.sh --fix Friction
+npm test
+npm run check:architecture && npm run knip
+COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh --local ../Friction
 ```
 
 `rename` updates package id and metadata, display name, and every sim-level `Sim*`
@@ -280,6 +286,8 @@ On forks it also strips template demos (empty preferences shell, no `example*` p
 drops unused `TimeModel` / `*ControlOptions` unless opted in, and writes a short `AGENTS.md`
 plus `doc/model.md` / `doc/implementation-notes.md` skeletons. Panel and ButtonOptions stay.
 After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSIM_[A-Z_]' src` to confirm.
+Run `npm test` **after** drift so the suite reflects the final generated state (generators
+tests and other template-only files are removed by `--fix`).
 
 ### Manual checklist (if not using the scripts)
 
@@ -291,14 +299,15 @@ After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSI
    replaces the placeholder PWA screenshots
 5. **Colors** — edit `*Colors.ts` (`default` + `projector` profiles per property), one
    `new ProfileColorProperty(Namespace, name, { default, projector })` per entry — no local helper
-6. **Description** — write a real one-sentence `package.json` `description`; `index.html` and the
-   PWA manifest read it (`%SIM_DESCRIPTION%`), so there is nothing else to edit
+6. **Description** — replace the rename placeholder (`A SceneryStack simulation: …`) with a real
+   one-sentence `package.json` `description`; `index.html` / PWA read `%SIM_DESCRIPTION%`
 7. **Placeholders** — `scaffold-screens` already strips `exampleToggle` / `exampleControl` and
    unused starters on forks; only revisit if you skipped scaffold or passed `--with-time-model` /
    `--with-control-options` without using them
 8. **Verify** — `Baton/scripts/check-template-drift.sh --fix <Sim>` (drops `rename` /
-   `scaffold-screens`, generators tests, and template-only docs) and
-   `COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh .`
+   `scaffold-screens`, generators tests, and template-only docs), then `npm test`,
+   `npm run check:architecture`, `npm run knip`, and
+   `COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh --local .`
 
 ## Multi-screen sims
 

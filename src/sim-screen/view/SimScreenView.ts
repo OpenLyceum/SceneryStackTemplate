@@ -57,9 +57,11 @@ export class SimScreenView extends ScreenView {
     this.addChild(backgroundRect);
 
     // ── Placeholder label (live template reference app only) ──────────────────
-    // Forks rename package.json away from scenerystack-template, so this stays
-    // out of new seeds. scaffold-screens also strips the block when emitting.
-    if (packageName === "scenerystack-template") {
+    // Build the sentinel with join() so rename-sim's global "scenerystack-template"
+    // string substitution cannot rewrite this comparison into the new package id.
+    // scaffold-screens also strips the block when emitting fork screens.
+    const templatePackageName = ["scenerystack", "template"].join("-");
+    if (packageName === templatePackageName) {
       const placeholderText = new Text(StringManager.getInstance().getScreenNames().simStringProperty, {
         font: "bold 36px sans-serif",
         fill: SimColors.textColorProperty,
