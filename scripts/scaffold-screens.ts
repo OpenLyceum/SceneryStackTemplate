@@ -386,9 +386,12 @@ ${exports}
   console.log(`  wrote    ${relative(ROOT, path)}`);
 }
 
+function localeFiles(): string[] {
+  return readdirSync(join(SRC, "i18n")).filter((file) => /^strings_.+\.json$/.test(file));
+}
+
 function updateLocaleFiles(screens: ScreenSpec[]): void {
-  const localeFiles = ["strings_en.json", "strings_es.json", "strings_fr.json"];
-  for (const file of localeFiles) {
+  for (const file of localeFiles()) {
     const path = join(SRC, "i18n", file);
     const json = JSON.parse(readFileSync(path, "utf8")) as {
       title: string;
@@ -426,7 +429,7 @@ function updateLocaleFiles(screens: ScreenSpec[]): void {
 
 function updateStringManager(screens: ScreenSpec[]): void {
   const path = join(SRC, "i18n", "StringManager.ts");
-  let text = readFileSync(path, "utf8");
+  let text = replaceSeedRegion(readFileSync(path, "utf8"), path, "reference-string-types");
 
   const nameFields = screens.map((s) => `    readonly ${s.key}StringProperty: ReadOnlyProperty<string>;`).join("\n");
   const nameReturns = screens
@@ -665,11 +668,7 @@ function stripA11yExampleControls(a11y: Record<string, unknown>): void {
   }
   const { exampleControl: _drop, ...rest } = controlsValue as Record<string, unknown>;
   if (Object.keys(rest).length === 0) {
-    const { controls: _c, ...withoutControls } = a11y;
-    for (const key of Object.keys(a11y)) {
-      Reflect.deleteProperty(a11y, key);
-    }
-    Object.assign(a11y, withoutControls);
+    Reflect.deleteProperty(a11y, "controls");
   } else {
     a11y["controls"] = rest;
   }
@@ -695,11 +694,8 @@ import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
 import "./${camel}QueryParameters.js";
 
 export class ${simPrefix}PreferencesModel {
-  public constructor(tandem?: Tandem) {
-    // Optional tandem kept so main.ts wiring stays uniform before preferences exist.
-    if (tandem) {
-      // Preference Properties will attach under this tandem when added.
-    }
+  public constructor(_tandem?: Tandem) {
+    // Attach preference Properties under this tandem when added.
   }
 
   public reset(): void {
@@ -716,13 +712,7 @@ ${simPrefix}Namespace.register("${simPrefix}PreferencesModel", ${simPrefix}Prefe
   const controlImport = withControlOptions
     ? `import { ${snake}_CHECKBOX_OPTIONS } from "../common/${simPrefix}ControlOptions.js";\n`
     : "";
-  const controlSeed = withControlOptions
-    ? `
-    // Keep ControlOptions reachable until real preference checkboxes land.
-    const checkboxSpacing = ${snake}_CHECKBOX_OPTIONS.spacing;
-`
-    : "";
-  const contentSpacing = withControlOptions ? "12 + checkboxSpacing * 0" : "12";
+  const contentSpacing = withControlOptions ? `${snake}_CHECKBOX_OPTIONS.spacing` : "12";
 
   // Use Panel to theme the empty shell (visually empty) so architecture reaches *Panel.ts.
   const nodePath = join(prefsDir, `${simPrefix}PreferencesNode.ts`);
@@ -742,7 +732,7 @@ ${controlImport}import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
 import type { ${simPrefix}PreferencesModel } from "./${simPrefix}PreferencesModel.js";
 
 export class ${simPrefix}PreferencesNode extends VBox {
-  public constructor(_preferencesModel: ${simPrefix}PreferencesModel, _tandem?: Tandem) {${controlSeed}
+  public constructor(_preferencesModel: ${simPrefix}PreferencesModel, _tandem?: Tandem) {
     const content = new VBox({
       align: "left",
       spacing: ${contentSpacing},
@@ -797,7 +787,7 @@ logGlobal("phet.chipper.queryParameters");
 }
 
 function stripLocaleDemoStrings(): void {
-  for (const file of ["strings_en.json", "strings_es.json", "strings_fr.json"]) {
+  for (const file of localeFiles()) {
     const path = join(SRC, "i18n", file);
     const json = JSON.parse(readFileSync(path, "utf8")) as {
       preferences?: Record<string, unknown>;
@@ -821,47 +811,36 @@ function stripLocaleDemoStrings(): void {
     writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`, "utf8");
     console.log(`  stripped ${relative(ROOT, path)}`);
   }
+}
 
-  const smPath = join(SRC, "i18n", "StringManager.ts");
-  let sm = readFileSync(smPath, "utf8");
-  sm = sm.replace(
-    /\n {2}readonly controls: \{\n {4}readonly exampleControlStringProperty: ReadOnlyProperty<string>;\n {2}\};/g,
-    "",
-  );
-  sm = sm.replace(/\n {2}readonly exampleToggleStringProperty: ReadOnlyProperty<string>;/g, "");
-  // Drop unused exported type aliases left after demo strip (Knip entry-export checks).
-  sm = sm.replace(/\n\/\*\*[\s\S]*?\*\/\nexport type \w+A11yStrings = \{[\s\S]*?\n\};\n/g, "\n");
-  sm = sm.replace(/\n\/\*\*[\s\S]*?\*\/\nexport type \w+PreferenceStrings = \{[\s\S]*?\n\};\n/g, "\n");
-  writeFileSync(smPath, sm, "utf8");
-  console.log(`  stripped ${relative(ROOT, smPath)}`);
+function replaceSeedRegion(text: string, path: string, name: string, replacement = ""): string {
+  const start = new RegExp(`^[ \t]*// seed:${name}:start[ \t]*\r?$`, "gm");
+  const end = new RegExp(`^[ \t]*// seed:${name}:end[ \t]*\r?$`, "gm");
+  const starts = [...text.matchAll(start)];
+  const ends = [...text.matchAll(end)];
+  const first = starts[0]?.index;
+  const last = ends[0];
+  if (starts.length !== 1 || ends.length !== 1 || first === undefined || !last || last.index < first) {
+    throw new Error(`${relative(ROOT, path)}: expected one ordered seed:${name} region`);
+  }
+  const after = last.index + last[0].length + 1;
+  return text.slice(0, first) + replacement + text.slice(after);
 }
 
 function stripScreenViewDemos(screens: ScreenSpec[]): void {
   for (const screen of screens) {
-    const viewPath = join(SRC, screen.kebab, "view", `${screen.pascal}ScreenView.ts`);
-    if (!existsSync(viewPath)) {
-      continue;
+    const path = join(SRC, screen.kebab, "view", `${screen.pascal}ScreenView.ts`);
+    let view = readFileSync(path, "utf8");
+    view = replaceSeedRegion(view, path, "placeholder");
+    view = replaceSeedRegion(view, path, "accessible-control");
+    const importedText = /\/\* template-demo \*\/\s*Text\s*,?/g;
+    const demoImports = /^import[^;]+;[ \t]*\/\/ template-demo[ \t]*\r?\n/gm;
+    if ([...view.matchAll(importedText)].length !== 1 || [...view.matchAll(demoImports)].length !== 2) {
+      throw new Error(`${relative(ROOT, path)}: missing template demo import markers`);
     }
-    let view = readFileSync(viewPath, "utf8");
-    view = view.replace(/\n\s*\/\/ ── Placeholder label[\s\S]*?\n\s*\}\n/, "\n");
-    view = view.replace(/^import \{ name as packageName \} from "[^"]+package\.json";\n/m, "");
-    if (!/\bnew Text\b/.test(view)) {
-      view = view.replace(
-        /import \{ Node, Rectangle, Text \} from "scenerystack\/scenery";/,
-        'import { Node, Rectangle } from "scenerystack/scenery";',
-      );
-      view = view.replace(
-        /import \{ Text, Node, Rectangle \} from "scenerystack\/scenery";/,
-        'import { Node, Rectangle } from "scenerystack/scenery";',
-      );
-    }
-    if (!/\bStringManager\.getInstance\b/.test(view)) {
-      view = view.replace(/^import \{ StringManager \} from "[^"]+";\n/m, "");
-    }
-    view = view.replace(/\bexampleControl\b/g, "control");
-    view = view.replace(/\bexampleToggle\b/g, "preference");
-    writeFileSync(viewPath, view, "utf8");
-    console.log(`  stripped ${relative(ROOT, viewPath)}`);
+    view = view.replace(importedText, "").replace(demoImports, "");
+    writeFileSync(path, view, "utf8");
+    console.log(`  stripped ${relative(ROOT, path)}`);
   }
 }
 
@@ -962,13 +941,12 @@ function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: S
   if (existsSync(knipPath)) {
     const knip = JSON.parse(readFileSync(knipPath, "utf8")) as { entry?: string[] };
     if (Array.isArray(knip.entry)) {
-      knip.entry = knip.entry.filter((entry) => {
-        const file = entry.replace(/!$/, "");
-        if (!existsSync(join(ROOT, file))) {
-          return false;
-        }
-        return !/(?:TimeModel|ControlOptions|Panel)\.ts$/.test(file);
-      });
+      const starterEntries = new Set([
+        "src/common/TimeModel.ts!",
+        `src/common/${simPrefix}Panel.ts!`,
+        `src/common/${simPrefix}ControlOptions.ts!`,
+      ]);
+      knip.entry = knip.entry.filter((entry) => !starterEntries.has(entry));
       writeFileSync(knipPath, `${JSON.stringify(knip, null, 2)}\n`, "utf8");
       console.log(`  updated  ${relative(ROOT, knipPath)}`);
     }
@@ -976,14 +954,16 @@ function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: S
 
   const leakPath = join(ROOT, "tests", "memory-leak.test.ts");
   const cases = screens.map((s) => `{ name: "${s.pascal}Model", create: () => new ${s.pascal}Model() }`);
-  const imports = [
-    ...screens.map((s) => `import { ${s.pascal}Model } from "../src/${s.kebab}/model/${s.pascal}Model.js";`),
-    'import { describeDisposalLeaks } from "./helpers/memoryLeak.js";',
-  ].join("\n");
+  const imports = screens.map((s) => `import { ${s.pascal}Model } from "../src/${s.kebab}/model/${s.pascal}Model.js";`);
+  if (args.withTimeModel) {
+    cases.unshift('{ name: "TimeModel", create: () => new TimeModel(), idempotentDispose: true }');
+    imports.unshift(
+      'import { describe, expect, it, vi } from "vitest";',
+      'import { TimeModel } from "../src/common/TimeModel.js";',
+    );
+  }
   const timerAssert = args.withTimeModel
     ? `
-
-import { describe, expect, it, vi } from "vitest";
 
 describe("composed TimeModel disposal", () => {
   it("screen models dispose their owned timer", () => {
@@ -1001,25 +981,15 @@ ${screens
 });
 `
     : "";
-  writeFileSync(
+  let leakSuite = readFileSync(leakPath, "utf8");
+  leakSuite = replaceSeedRegion(leakSuite, leakPath, "leak-imports", `${imports.join("\n")}\n`);
+  leakSuite = replaceSeedRegion(
+    leakSuite,
     leakPath,
-    `/**
- * Memory-leak regression suite (fleet standard).
- *
- * List every model/view object that links Properties, adds listeners, or owns child
- * nodes, with a factory that builds a fresh instance. The shared harness in
- * tests/helpers/memoryLeak.ts (template-owned) checks that each one is garbage
- * collected after dispose() and leaves no survivors across repeated cycles
- * (idempotentDispose: true also checks a second dispose()). Add sim-specific leak
- * tests below using forceGC().
- */
-
-${imports}
-
-describeDisposalLeaks([${cases.join(", ")}]);
-${timerAssert}`,
-    "utf8",
+    "leak-cases",
+    `describeDisposalLeaks([${cases.join(", ")}]);\n${timerAssert}`,
   );
+  writeFileSync(leakPath, leakSuite, "utf8");
   console.log(`  updated  ${relative(ROOT, leakPath)}`);
 }
 
@@ -1058,7 +1028,6 @@ Sim-specific context for AI assistants. General SceneryStack guidance: [OpenLyce
 ## Project
 
 ${displayName} (\`${pkg.name ?? ""}\`) is a SceneryStack simulation scaffolded from SceneryStackTemplate.
-${pkg.description ? `${pkg.description}` : ""}
 
 ## Key files
 
@@ -1131,17 +1100,22 @@ Screens: ${screenList}
   );
   console.log("  wrote    doc/implementation-notes.md");
 
-  sanitizeForkReadme();
+  sanitizeForkReadme(pkg.description);
 }
 
 /** Drop one-shot template script rows from the fork README after scaffold. */
-function sanitizeForkReadme(): void {
+function sanitizeForkReadme(description: string | undefined): void {
   const path = join(ROOT, "README.md");
   if (!existsSync(path)) {
     return;
   }
   let text = readFileSync(path, "utf8");
   const original = text;
+  const intro = description && !description.startsWith("A SceneryStack simulation:") ? description.trim() : "";
+  text = text.replace(/^A reusable SceneryStack simulation template[^\n]*\n[^\n]*\n\n/m, () =>
+    intro ? `${intro}\n\n` : "",
+  );
+  text = text.replace(/^- SceneryStack scaffold with model\/view separation[^\n]*\n/gm, "");
   text = text.replace(/^\| `npm run rename` \|.*\|\n/gm, "");
   text = text.replace(/^\| `npm run scaffold-screens` \|.*\|\n/gm, "");
   text = text.replace(/\nNew sims start at `version: "0\.0\.0"`[\s\S]*?from `package\.json`\.\n/, "\n");
@@ -1238,12 +1212,12 @@ function main(): void {
     applyOptionalStarters(args, prefix, screenList);
   }
 
-  console.log("\nRewriting docs that referenced the prototype…");
-  updateDocs(screenList, prefix);
-
   if (fork) {
     console.log("\nWriting short sim-specific docs…");
     writeSeedDocs(prefix, screenList);
+  } else {
+    console.log("\nRewriting docs that referenced the prototype…");
+    updateDocs(screenList, prefix);
   }
 
   console.log("\nRemoving prototype screen package…");

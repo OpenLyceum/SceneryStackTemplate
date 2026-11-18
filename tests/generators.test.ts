@@ -1,11 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 const PROJECT_ROOT = process.cwd();
-const BATON_ROOT = join(PROJECT_ROOT, "..", "Baton");
 const FIXTURE_ENTRIES = [
   "AGENTS.md",
   "README.md",
@@ -32,19 +41,37 @@ const TEMPLATE_ONLY_FILES = [
   "doc/improvement-recommendations.md",
 ] as const;
 
+const CHECK_FIXTURE_ENTRIES = [
+  ".dependency-cruiser.cjs",
+  ".gitignore",
+  "biome.json",
+  "biome-plugins",
+  "playwright.config.ts",
+  "tests/browser",
+  "tests/fuzz",
+  "tests/helpers",
+  "tsconfig.json",
+  "tsconfig.scripts.json",
+  "tsconfig.test.json",
+  "vitest.config.ts",
+] as const;
+
 const fixtureRoots: string[] = [];
 
-function createFixture(): string {
+function createFixture(includeChecks = false): string {
   const fixtureRoot = mkdtempSync(join(tmpdir(), "scenerystack-generators-"));
   const fixture = join(fixtureRoot, "repo");
   mkdirSync(fixture);
   fixtureRoots.push(fixtureRoot);
 
-  for (const entry of FIXTURE_ENTRIES) {
+  for (const entry of includeChecks ? [...FIXTURE_ENTRIES, ...CHECK_FIXTURE_ENTRIES] : FIXTURE_ENTRIES) {
     const source = join(PROJECT_ROOT, entry);
     const destination = join(fixture, entry);
     mkdirSync(dirname(destination), { recursive: true });
     cpSync(source, destination, { recursive: true });
+  }
+  if (includeChecks) {
+    symlinkSync(join(PROJECT_ROOT, "node_modules"), join(fixture, "node_modules"), "junction");
   }
   return fixture;
 }
@@ -279,26 +306,51 @@ describe("template generators", () => {
     );
     expect(existsSync(join(fixture, "src", "common", "TimeModel.ts"))).toBe(false);
     expect(readFileSync(join(fixture, "AGENTS.md"), "utf8")).toContain("## Compliance carve-outs");
-
-    if (existsSync(join(BATON_ROOT, "scripts", "check-template-drift.mjs"))) {
-      // Fixture omits many exact-owned files; assert only that template-only paths stay gone.
-      const result = spawnSync(
-        process.execPath,
-        [
-          join(BATON_ROOT, "scripts", "check-template-drift.mjs"),
-          "--dir",
-          fixture,
-          "--name",
-          "WaveLab",
-          "--template",
-          PROJECT_ROOT,
-          "--json",
-        ],
-        { encoding: "utf8" },
-      );
-      const report = JSON.parse(result.stdout) as Array<{ issues: Array<{ kind: string; path: string }> }>;
-      const templateOnlyIssues = (report[0]?.issues ?? []).filter((issue) => issue.kind === "template-only");
-      expect(templateOnlyIssues, JSON.stringify(templateOnlyIssues, null, 2)).toEqual([]);
-    }
   });
+
+  it("strips demo strings from additional locales and preserves custom leak-suite content", () => {
+    const fixture = createFixture();
+    const locales = join(fixture, "src", "i18n");
+    cpSync(join(locales, "strings_en.json"), join(locales, "strings_de.json"));
+    const leakPath = join(fixture, "tests", "memory-leak.test.ts");
+    const customNote = "// Custom leak regressions live outside the seed markers.";
+    writeFileSync(leakPath, `${readFileSync(leakPath, "utf8")}\n${customNote}\n`, "utf8");
+
+    renameAndScaffold(fixture, ["--screens", "Intro,Lab"]);
+
+    const locale = readFileSync(join(locales, "strings_de.json"), "utf8");
+    expect(locale).toContain('"intro": "Intro"');
+    expect(locale).toContain('"lab": "Lab"');
+    expect(locale).not.toMatch(/exampleToggle|exampleControl/);
+    expect(readFileSync(leakPath, "utf8")).toContain(customNote);
+  });
+
+  it.each([
+    { name: "default", args: [] },
+    {
+      name: "shared and opt-in starters",
+      args: ["--screens", "Intro,Lab", "--shared-model", "--with-time-model", "--with-control-options"],
+    },
+  ])(
+    "passes the required checks on a $name fork",
+    ({ args }) => {
+      const fixture = createFixture(true);
+      renameAndScaffold(fixture, args);
+      simulateTemplateOnlyRemoval(fixture);
+
+      const npm = process.env["npm_execpath"];
+      if (!npm) {
+        throw new Error("Run the scaffold integration tests with npm test.");
+      }
+      for (const script of ["fix", "lint", "check", "check:architecture", "check:unused", "test"]) {
+        const result = spawnSync(process.execPath, [npm, "run", script], {
+          cwd: fixture,
+          encoding: "utf8",
+          timeout: 90_000,
+        });
+        expect(result.status, `${script}\n${result.error ?? ""}\n${result.stdout}\n${result.stderr}`).toBe(0);
+      }
+    },
+    120_000,
+  );
 });

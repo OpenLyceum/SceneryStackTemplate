@@ -21,12 +21,12 @@
  */
 
 import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
-import { Node, Rectangle, Text } from "scenerystack/scenery";
+import { Node, Rectangle, /* template-demo */ Text } from "scenerystack/scenery";
 import { ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
-import { name as packageName } from "../../../package.json";
+import { name as packageName } from "../../../package.json"; // template-demo
 import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/SimButtonOptions.js";
-import { StringManager } from "../../i18n/StringManager.js";
+import { StringManager } from "../../i18n/StringManager.js"; // template-demo
 import SimColors from "../../SimColors.js";
 import { SCREEN_VIEW_MARGIN } from "../../SimConstants.js";
 import type { SimModel } from "../model/SimModel.js";
@@ -56,6 +56,7 @@ export class SimScreenView extends ScreenView {
     });
     this.addChild(backgroundRect);
 
+    // seed:placeholder:start
     // ── Placeholder label (live template reference app only) ──────────────────
     // Build the sentinel with join() so rename-sim's global "scenerystack-template"
     // string substitution cannot rewrite this comparison into the new package id.
@@ -70,13 +71,26 @@ export class SimScreenView extends ScreenView {
       this.addChild(placeholderText);
     }
 
+    // seed:placeholder:end
+
     // ── Accessibility: per-control names ────────────────────────────────────────
     // EVERY interactive node must carry an `accessibleName` (and an
     // `accessibleHelpText` where useful), sourced from the StringManager `a11y`
     // string group — never a hard-coded English literal. Sun/scenery-phet controls
     // (NumberControl, Checkbox, ComboBox, AquaRadioButtonGroup, …) accept it as an
     // option; a draggable plain Node needs `tagName: "div", focusable: true` too.
-    // When you add a real control, set accessibleName from get*A11yStrings().controls.
+    // seed:accessible-control:start
+    // Example (uncomment and adapt when you add a real control):
+    //
+    //   const a11y = StringManager.getInstance().getA11yStrings();
+    //   const exampleButton = new RectangularPushButton({
+    //     ...FLAT_RECTANGULAR_BUTTON_OPTIONS, // flat appearance, not SceneryStack's default 3-D look
+    //     content: someIcon,
+    //     listener: () => model.doSomething(),
+    //     accessibleName: a11y.controls.exampleControlStringProperty,
+    //   });
+    //   this.addChild(exampleButton);
+    // seed:accessible-control:end
 
     // ── Reset All button ──────────────────────────────────────────────────────
     // Always position at bottom-right (PhET convention).

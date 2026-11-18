@@ -257,7 +257,7 @@ without a second edit.
 ### Recommended: Baton create-sim
 
 ```sh
-Baton/scripts/create-sim.sh --repo Friction --name "Friction" --screens Intro,Lab --shared-model --onboard
+Baton/scripts/create-sim.sh --repo Friction --name "Friction" --description "Explore how surface friction affects motion." --screens Intro,Lab --topics friction --shared-model --onboard
 # optional starters (off by default): --with-time-model --with-control-options
 ```
 
@@ -266,17 +266,14 @@ Baton/scripts/create-sim.sh --repo Friction --name "Friction" --screens Intro,La
 ```sh
 npm install
 npm run rename -- --id friction --name "Friction"
+# Write a one-sentence description of what the sim models in package.json.
 npm run scaffold-screens -- --screens Intro,Lab --shared-model
 # omit --screens for one screen named after the sim; omit --shared-model for independent models
 # optional: --with-time-model / --with-control-options (both default off for forks)
 npm run fix     # required: both scripts reorder imports, which Biome then sorts
-npm run check
-# Replace the rename placeholder description with a real one-sentence package.json description
-# before drift/compliance (create-sim --description does this for the Baton path).
-Baton/scripts/check-template-drift.sh --fix Friction
-npm test
-npm run check:architecture && npm run knip
-COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh --local ../Friction
+../Baton/scripts/check-template-drift.sh --fix Friction
+npm run lint && npm run check && npm run check:architecture && npm run check:unused && npm test
+../Baton/scripts/check-repo-compliance.sh --local .
 ```
 
 `rename` updates package id and metadata, display name, and every sim-level `Sim*`
