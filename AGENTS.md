@@ -279,8 +279,10 @@ npm run lint && npm run check && npm run check:architecture && npm run check:unu
 `rename` updates package id and metadata, display name, and every sim-level `Sim*`
 (Colors, Constants, Namespace, Panel, ButtonOptions, ControlOptions, Preferences, query parameters).
 `scaffold-screens` owns screen folders (fleet naming: `src/intro/`, not `intro-screen/`).
-On forks it also strips template demos (empty preferences shell, no `example*` placeholders),
-drops unused `TimeModel` / `*ControlOptions` unless opted in, and writes a short `AGENTS.md`
+On forks it also strips template demos (no live `example*` code), leaving commented
+patterns to copy: a `showGrid` preference across the query parameters, preferences model,
+and preferences node; an accessible control in each ScreenView; and, when dropped, a pointer
+to `TimeModel` / `*ControlOptions`. It drops those starters unless opted in, and writes a short `AGENTS.md`
 plus `doc/model.md` / `doc/implementation-notes.md` skeletons. Panel and ButtonOptions stay.
 After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSIM_[A-Z_]' src` to confirm.
 Run `npm test` **after** drift so the suite reflects the final generated state (generators

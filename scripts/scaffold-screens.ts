@@ -23,8 +23,9 @@
  *   --with-time-model           Keep src/common/TimeModel.ts (+ test) and compose it into screen models
  *   --with-control-options      Keep src/common/*ControlOptions.ts (default: remove for forks)
  *
- * Forks (package.json name ≠ scenerystack-template) get demos stripped: empty preferences
- * shell, no example* strings/controls, no SharedModel exampleEnabledProperty, and short
+ * Forks (package.json name ≠ scenerystack-template) get demos stripped: no live example*
+ * strings/controls and no SharedModel exampleEnabledProperty. Commented showGrid /
+ * accessible-control / TimeModel patterns stay as guidance, plus short
  * AGENTS.md / doc/model.md / doc/implementation-notes.md. The live template package keeps demos.
  */
 
@@ -694,6 +695,24 @@ import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
 import "./${camel}QueryParameters.js";
 
 export class ${simPrefix}PreferencesModel {
+  // Pattern for a preference (skill: scenerystack-preferences). Every preference is
+  // one chain: query parameter → Property here → label in every strings_*.json →
+  // control in ${simPrefix}PreferencesNode → reset() below.
+  //
+  //   import { BooleanProperty } from "scenerystack/axon";
+  //   import ${camel}QueryParameters from "./${camel}QueryParameters.js"; // replaces the bare import
+  //
+  //   public readonly showGridProperty: BooleanProperty;
+  //
+  //   // in the constructor (rename _tandem → tandem):
+  //   this.showGridProperty = new BooleanProperty(
+  //     ${camel}QueryParameters.showGrid,
+  //     tandem ? { tandem: tandem.createTandem("showGridProperty") } : undefined,
+  //   );
+  //
+  //   // in reset():
+  //   this.showGridProperty.reset();
+
   public constructor(_tandem?: Tandem) {
     // Attach preference Properties under this tandem when added.
   }
@@ -713,6 +732,10 @@ ${simPrefix}Namespace.register("${simPrefix}PreferencesModel", ${simPrefix}Prefe
     ? `import { ${snake}_CHECKBOX_OPTIONS } from "../common/${simPrefix}ControlOptions.js";\n`
     : "";
   const contentSpacing = withControlOptions ? `${snake}_CHECKBOX_OPTIONS.spacing` : "12";
+  const checkboxSpread = withControlOptions
+    ? `//       ...${snake}_CHECKBOX_OPTIONS,`
+    : `//       // Shared slider / NumberControl / checkbox bundles live in ${simPrefix}ControlOptions.ts:
+//       // copy the template's src/common/*ControlOptions.ts and apply the ${simPrefix} prefix.`;
 
   // Use Panel to theme the empty shell (visually empty) so architecture reaches *Panel.ts.
   const nodePath = join(prefsDir, `${simPrefix}PreferencesNode.ts`);
@@ -733,6 +756,25 @@ import type { ${simPrefix}PreferencesModel } from "./${simPrefix}PreferencesMode
 
 export class ${simPrefix}PreferencesNode extends VBox {
   public constructor(_preferencesModel: ${simPrefix}PreferencesModel, _tandem?: Tandem) {
+    // Pattern for a preference control (skill: scenerystack-preferences). The dialog is
+    // always white, so use the controlSurface colors, not textColorProperty.
+    //
+    //   const prefStrings = StringManager.getInstance().getPreferences();
+    //   const showGridCheckbox = new Checkbox(
+    //     preferencesModel.showGridProperty,
+    //     new Text(prefStrings.showGridStringProperty, {
+    //       font: new PhetFont(14),
+    //       fill: ${simPrefix}Colors.controlSurfaceTextColorProperty,
+    //     }),
+    //     {
+    ${checkboxSpread}
+    //       checkboxColor: ${simPrefix}Colors.controlSurfaceTextColorProperty,
+    //       checkboxColorBackground: ${simPrefix}Colors.controlSurfaceColorProperty,
+    //       ...(tandem && { tandem: tandem.createTandem("showGridCheckbox") }),
+    //     },
+    //   );
+    //
+    // Add showGridCheckbox to the content children below.
     const content = new VBox({
       align: "left",
       spacing: ${contentSpacing},
@@ -775,7 +817,14 @@ import { logGlobal } from "scenerystack/phet-core";
 import { QueryStringMachine } from "scenerystack/query-string-machine";
 import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
 
-const ${camel}QueryParameters = QueryStringMachine.getAll({});
+const ${camel}QueryParameters = QueryStringMachine.getAll({
+  // Pattern (skill: scenerystack-query-parameters): one typed entry per parameter.
+  // Mark it public only if users may set it from the URL. When the first entry is
+  // added, make ${camel}QueryParameters the module's default export and import it by
+  // name from ${simPrefix}PreferencesModel.
+  //
+  //   showGrid: { type: "boolean", defaultValue: false, public: true },
+});
 
 ${simPrefix}Namespace.register("${camel}QueryParameters", ${camel}QueryParameters);
 
@@ -827,12 +876,26 @@ function replaceSeedRegion(text: string, path: string, name: string, replacement
   return text.slice(0, first) + replacement + text.slice(after);
 }
 
+/** The template's commented example, renamed so compliance's placeholder grep stays clean. */
+const ACCESSIBLE_CONTROL_PATTERN = `    // Example (uncomment and adapt when you add a real control; add the
+    // \`a11y.controls.startButton\` string to every strings_*.json first):
+    //
+    //   const a11y = StringManager.getInstance().getA11yStrings();
+    //   const startButton = new RectangularPushButton({
+    //     ...FLAT_RECTANGULAR_BUTTON_OPTIONS, // flat appearance, not SceneryStack's default 3-D look
+    //     content: someIcon,
+    //     listener: () => model.start(),
+    //     accessibleName: a11y.controls.startButtonStringProperty,
+    //   });
+    //   this.addChild(startButton);
+`;
+
 function stripScreenViewDemos(screens: ScreenSpec[]): void {
   for (const screen of screens) {
     const path = join(SRC, screen.kebab, "view", `${screen.pascal}ScreenView.ts`);
     let view = readFileSync(path, "utf8");
     view = replaceSeedRegion(view, path, "placeholder");
-    view = replaceSeedRegion(view, path, "accessible-control");
+    view = replaceSeedRegion(view, path, "accessible-control", ACCESSIBLE_CONTROL_PATTERN);
     const importedText = /\/\* template-demo \*\/\s*Text\s*,?/g;
     const demoImports = /^import[^;]+;[ \t]*\/\/ template-demo[ \t]*\r?\n/gm;
     if ([...view.matchAll(importedText)].length !== 1 || [...view.matchAll(demoImports)].length !== 2) {
@@ -903,6 +966,27 @@ function composeTimeModel(screens: ScreenSpec[]): void {
   }
 }
 
+const TIME_MODEL_POINTER = `    // For play/pause, speed, and elapsed time, compose TimeModel instead of hand-rolling
+    // a clock: copy src/common/TimeModel.ts (and tests/TimeModel.test.ts) from
+    // SceneryStackTemplate unchanged — Baton's drift check requires an exact match —
+    // then hold one in a readonly \`timer\` field, step/reset/dispose it, and list it
+    // in tests/memory-leak.test.ts.
+`;
+
+/** Point dropped-TimeModel forks at the template copy instead of a hand-rolled clock. */
+function addTimeModelPointer(screens: ScreenSpec[]): void {
+  for (const screen of screens) {
+    const modelPath = join(SRC, screen.kebab, "model", `${screen.pascal}Model.ts`);
+    const model = readFileSync(modelPath, "utf8");
+    const updated = model.replace(/(\n {2}public step\(_dt: number\): void \{\n)/, `$1${TIME_MODEL_POINTER}`);
+    if (updated === model) {
+      throw new Error(`${relative(ROOT, modelPath)}: could not find step(_dt) for the TimeModel pointer`);
+    }
+    writeFileSync(modelPath, updated, "utf8");
+    console.log(`  updated  ${relative(ROOT, modelPath)} (TimeModel pointer)`);
+  }
+}
+
 function ensureScreenModelDispose(screens: ScreenSpec[], withTimeModel: boolean): void {
   for (const screen of screens) {
     const modelPath = join(SRC, screen.kebab, "model", `${screen.pascal}Model.ts`);
@@ -932,6 +1016,8 @@ function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: S
   removeOptionalStarterFiles(args, simPrefix);
   if (args.withTimeModel) {
     composeTimeModel(screens);
+  } else {
+    addTimeModelPointer(screens);
   }
   ensureScreenModelDispose(screens, args.withTimeModel);
 
