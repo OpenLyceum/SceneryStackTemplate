@@ -892,6 +892,7 @@ function composeTimeModel(screens: ScreenSpec[]): void {
       model = model.replace(/public reset\(\): void \{\n/, "public reset(): void {\n    this.timer.reset();\n");
     }
     if (model.includes("public step(_dt: number): void {") && !model.includes("this.timer.step")) {
+      model = model.replace("@param _dt -", "@param dt -");
       model = model.replace(
         /public step\(_dt: number\): void \{\n\s*\/\/ TODO: advance simulation state here\n\s*\}/,
         "public step(dt: number): void {\n    this.timer.step(dt);\n    // TODO: advance simulation state here\n  }",
@@ -920,7 +921,7 @@ function ensureScreenModelDispose(screens: ScreenSpec[], withTimeModel: boolean)
     }
     model = model.replace(
       /\n\}\n?\s*$/,
-      `\n  /** Release owned Properties / composed models. */\n  public dispose(): void {\n${disposeBody}  }\n}\n`,
+      `\n\n  /** Release owned Properties / composed models. */\n  public dispose(): void {\n${disposeBody}  }\n}\n`,
     );
     writeFileSync(modelPath, model, "utf8");
     console.log(`  updated  ${relative(ROOT, modelPath)} (dispose)`);
@@ -993,7 +994,7 @@ ${screens
   console.log(`  updated  ${relative(ROOT, leakPath)}`);
 }
 
-function writeSeedDocs(simPrefix: string, screens: ScreenSpec[]): void {
+function writeSeedDocs(simPrefix: string, screens: ScreenSpec[], args: ScaffoldArgs): void {
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
     name?: string;
     description?: string;
@@ -1021,6 +1022,15 @@ function writeSeedDocs(simPrefix: string, screens: ScreenSpec[]): void {
     )
     .join("\n");
 
+  const starterRows = [
+    args.withControlOptions
+      ? `| \`src/common/${simPrefix}ControlOptions.ts\` | Shared checkbox / slider / NumberControl options |\n`
+      : "",
+    args.withTimeModel
+      ? "| `src/common/TimeModel.ts` | Play/pause, speed, and elapsed time composed by screen models |\n"
+      : "",
+  ].join("");
+
   const agents = `# AGENTS.md — ${displayName}
 
 Sim-specific context for AI assistants. General SceneryStack guidance: [OpenLyceum/.github/AGENTS.md](https://github.com/OpenLyceum/.github/blob/main/AGENTS.md).
@@ -1039,7 +1049,7 @@ ${displayName} (\`${pkg.name ?? ""}\`) is a SceneryStack simulation scaffolded f
 | \`src/i18n/StringManager.ts\` | Singleton localized string accessor |
 | \`src/common/${simPrefix}Panel.ts\` | Pre-themed \`Panel\` wrapper |
 | \`src/common/${simPrefix}ButtonOptions.ts\` | Flat button / combo-box option bundles |
-${screenRows}
+${starterRows}${screenRows}
 
 ## Compliance carve-outs
 
@@ -1214,7 +1224,7 @@ function main(): void {
 
   if (fork) {
     console.log("\nWriting short sim-specific docs…");
-    writeSeedDocs(prefix, screenList);
+    writeSeedDocs(prefix, screenList, args);
   } else {
     console.log("\nRewriting docs that referenced the prototype…");
     updateDocs(screenList, prefix);
