@@ -51,18 +51,26 @@ For simulations with animation, compose `TimeModel` into your screen model:
 import { TimeModel } from "../../common/TimeModel.js";
 
 export class MyModel implements TModel {
-  public readonly timer = new TimeModel();   // starts paused; pass true to auto-play
+  public readonly timer = new TimeModel();   // starts paused; { initiallyPlaying: true } to auto-play
 
   public step(dt: number): void {
-    this.timer.step(dt);
-    // use this.timer.timeProperty.value for physics
+    if (!this.timer.isPlayingProperty.value) return;
+    this.stepOnce(dt);
+  }
+  public stepOnce(dt: number): void {   // step-forward calls this while paused
+    this.timer.advance(dt);
+    // integrate physics by dt
   }
   public reset(): void { this.timer.reset(); /* … */ }
 }
 ```
 
 Wire the view to `TimeControlNode` from `scenerystack/scenery-phet` binding on
-`model.timer.isPlayingProperty`.
+`model.timer.isPlayingProperty` (and `timeSpeedProperty` / `timeSpeeds` when the sim
+passes `timeSpeedMultipliers`). `TimeModel.ts` is template-owned: a sim that keeps it
+must match the template exactly (Baton drift check), so configure it through its options
+(`initiallyPlaying`, `units`, `timeSpeedMultipliers`, `initialTimeSpeed`) and keep
+sim-specific clock behavior in the sim's own model.
 
 ### SimButtonOptions
 

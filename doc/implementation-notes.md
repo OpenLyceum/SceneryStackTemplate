@@ -77,17 +77,23 @@ Compose into your screen model for animation (do not subclass `TimeModel`):
 
 ```typescript
 export class MyModel implements TModel {
-  public readonly timer = new TimeModel();  // pass true to auto-play on startup
+  public readonly timer = new TimeModel();  // { initiallyPlaying: true } to auto-play
 
   public step(dt: number): void {
-    this.timer.step(dt);
+    if (!this.timer.isPlayingProperty.value) return;
+    this.stepOnce(dt);
+  }
+  public stepOnce(dt: number): void {  // step-forward calls this while paused
+    this.timer.advance(dt);
     // physics uses this.timer.timeProperty.value
   }
   public reset(): void { this.timer.reset(); /* restore initial state */ }
 }
 ```
 
-Wire `TimeControlNode` to `model.timer.isPlayingProperty` in the view.
+Wire `TimeControlNode` to `model.timer.isPlayingProperty` in the view (plus
+`timeSpeedProperty` / `timeSpeeds` when using `timeSpeedMultipliers`). The file is
+template-owned; configure it through options rather than editing a copy.
 
 ### SimButtonOptions
 
