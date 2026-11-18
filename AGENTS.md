@@ -258,6 +258,7 @@ without a second edit.
 
 ```sh
 Baton/scripts/create-sim.sh --repo Friction --name "Friction" --screens Intro,Lab --shared-model --onboard
+# optional starters (off by default): --with-time-model --with-control-options
 ```
 
 ### Manual: GitHub template + rename + scaffold
@@ -267,6 +268,7 @@ npm install
 npm run rename -- --id friction --name "Friction"
 npm run scaffold-screens -- --screens Intro,Lab --shared-model
 # omit --screens for one screen named after the sim; omit --shared-model for independent models
+# optional: --with-time-model / --with-control-options (both default off for forks)
 npm run fix     # required: both scripts reorder imports, which Biome then sorts
 npm run check
 ```
@@ -274,6 +276,9 @@ npm run check
 `rename` updates package id and metadata, display name, and every sim-level `Sim*`
 (Colors, Constants, Namespace, Panel, ButtonOptions, ControlOptions, Preferences, query parameters).
 `scaffold-screens` owns screen folders (fleet naming: `src/intro/`, not `intro-screen/`).
+On forks it also strips template demos (empty preferences shell, no `example*` placeholders),
+drops unused `TimeModel` / `*ControlOptions` unless opted in, and writes a short `AGENTS.md`
+plus `doc/model.md` / `doc/implementation-notes.md` skeletons. Panel and ButtonOptions stay.
 After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSIM_[A-Z_]' src` to confirm.
 
 ### Manual checklist (if not using the scripts)
@@ -288,10 +293,12 @@ After both steps no `Sim*` identifier should remain — `rg -n '\bSim[A-Z_]|\bSI
    `new ProfileColorProperty(Namespace, name, { default, projector })` per entry — no local helper
 6. **Description** — write a real one-sentence `package.json` `description`; `index.html` and the
    PWA manifest read it (`%SIM_DESCRIPTION%`), so there is nothing else to edit
-7. **Placeholders** — delete the `exampleToggle` preference and the `exampleControl` a11y string;
-   delete `src/common/TimeModel.ts` (and `tests/TimeModel.test.ts`) if the sim has no clock
+7. **Placeholders** — `scaffold-screens` already strips `exampleToggle` / `exampleControl` and
+   unused starters on forks; only revisit if you skipped scaffold or passed `--with-time-model` /
+   `--with-control-options` without using them
 8. **Verify** — `Baton/scripts/check-template-drift.sh --fix <Sim>` (drops `rename` /
-   `scaffold-screens`, which are template-only) and `COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh .`
+   `scaffold-screens`, generators tests, and template-only docs) and
+   `COMPLIANCE_STRICT=1 Baton/scripts/check-repo-compliance.sh .`
 
 ## Multi-screen sims
 

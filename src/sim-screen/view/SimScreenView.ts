@@ -24,6 +24,7 @@ import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import { Node, Rectangle, Text } from "scenerystack/scenery";
 import { ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
+import { name as packageName } from "../../../package.json";
 import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/SimButtonOptions.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import SimColors from "../../SimColors.js";
@@ -55,14 +56,17 @@ export class SimScreenView extends ScreenView {
     });
     this.addChild(backgroundRect);
 
-    // ── Placeholder label ─────────────────────────────────────────────────────
-    // Replace this with your actual simulation content.
-    const placeholderText = new Text(StringManager.getInstance().getScreenNames().simStringProperty, {
-      font: "bold 36px sans-serif",
-      fill: SimColors.textColorProperty,
-      center: this.layoutBounds.center,
-    });
-    this.addChild(placeholderText);
+    // ── Placeholder label (live template reference app only) ──────────────────
+    // Forks rename package.json away from scenerystack-template, so this stays
+    // out of new seeds. scaffold-screens also strips the block when emitting.
+    if (packageName === "scenerystack-template") {
+      const placeholderText = new Text(StringManager.getInstance().getScreenNames().simStringProperty, {
+        font: "bold 36px sans-serif",
+        fill: SimColors.textColorProperty,
+        center: this.layoutBounds.center,
+      });
+      this.addChild(placeholderText);
+    }
 
     // ── Accessibility: per-control names ────────────────────────────────────────
     // EVERY interactive node must carry an `accessibleName` (and an
@@ -70,16 +74,7 @@ export class SimScreenView extends ScreenView {
     // string group — never a hard-coded English literal. Sun/scenery-phet controls
     // (NumberControl, Checkbox, ComboBox, AquaRadioButtonGroup, …) accept it as an
     // option; a draggable plain Node needs `tagName: "div", focusable: true` too.
-    // Example (uncomment and adapt when you add a real control):
-    //
-    //   const a11y = StringManager.getInstance().getA11yStrings();
-    //   const exampleButton = new RectangularPushButton({
-    //     ...FLAT_RECTANGULAR_BUTTON_OPTIONS, // flat appearance, not SceneryStack's default 3-D look
-    //     content: someIcon,
-    //     listener: () => model.doSomething(),
-    //     accessibleName: a11y.controls.exampleControlStringProperty,
-    //   });
-    //   this.addChild(exampleButton);
+    // When you add a real control, set accessibleName from get*A11yStrings().controls.
 
     // ── Reset All button ──────────────────────────────────────────────────────
     // Always position at bottom-right (PhET convention).

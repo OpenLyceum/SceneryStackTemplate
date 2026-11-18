@@ -17,9 +17,15 @@
  *   npm run scaffold-screens              # one screen from package.json display name / id
  *
  * Options:
- *   --screens <list>   Comma-separated titles, or kebab:Title pairs
- *   --prefix <Pascal>  Override sim prefix (default: detect from *Colors.ts)
- *   --shared-model     Emit src/common/model/SharedModel.ts; each screen model composes it
+ *   --screens <list>            Comma-separated titles, or kebab:Title pairs
+ *   --prefix <Pascal>           Override sim prefix (default: detect from *Colors.ts)
+ *   --shared-model              Emit src/common/model/SharedModel.ts; each screen model composes it
+ *   --with-time-model           Keep src/common/TimeModel.ts (+ test) and compose it into screen models
+ *   --with-control-options      Keep src/common/*ControlOptions.ts (default: remove for forks)
+ *
+ * Forks (package.json name ≠ scenerystack-template) get demos stripped: empty preferences
+ * shell, no example* strings/controls, no SharedModel exampleEnabledProperty, and short
+ * AGENTS.md / doc/model.md / doc/implementation-notes.md. The live template package keeps demos.
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -28,19 +34,37 @@ import { parseArgs } from "node:util";
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
 
-function readArgs(): { screens?: string | undefined; prefix?: string | undefined; sharedModel: boolean } {
+interface ScaffoldArgs {
+  screens?: string | undefined;
+  prefix?: string | undefined;
+  sharedModel: boolean;
+  withTimeModel: boolean;
+  withControlOptions: boolean;
+}
+
+function readArgs(): ScaffoldArgs {
   try {
     const { values } = parseArgs({
       options: {
         screens: { type: "string" },
         prefix: { type: "string" },
         "shared-model": { type: "boolean", default: false },
+        "with-time-model": { type: "boolean", default: false },
+        "with-control-options": { type: "boolean", default: false },
       },
     });
-    return { screens: values.screens, prefix: values.prefix, sharedModel: values["shared-model"] };
+    return {
+      screens: values.screens,
+      prefix: values.prefix,
+      sharedModel: values["shared-model"],
+      withTimeModel: values["with-time-model"],
+      withControlOptions: values["with-control-options"],
+    };
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
-    console.error("Usage: npm run scaffold-screens -- [--screens <list>] [--prefix <Pascal>] [--shared-model]");
+    console.error(
+      "Usage: npm run scaffold-screens -- [--screens <list>] [--prefix <Pascal>] [--shared-model] [--with-time-model] [--with-control-options]",
+    );
     process.exit(1);
   }
 }
@@ -603,19 +627,440 @@ function writeSharedModel(): void {
  * ACPhasor / RotatingSky. For a single live instance shared across screens, construct
  * once in main.ts and pass it into each Screen/Model instead.
  */
-import { BooleanProperty } from "scenerystack/axon";
 
 export class SharedModel {
-  /** Example shared toggle — replace with real cross-screen Properties. */
-  public readonly exampleEnabledProperty = new BooleanProperty(false);
-
   public reset(): void {
-    this.exampleEnabledProperty.reset();
+    // Reset shared Properties here when added.
   }
 }
 `;
   writeFileSync(path, body, "utf8");
   console.log(`  wrote    ${relative(ROOT, path)}`);
+}
+
+function readPackageName(): string {
+  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { name?: string };
+  return pkg.name ?? "";
+}
+
+function isTemplatePackage(): boolean {
+  return readPackageName() === "scenerystack-template";
+}
+
+function prefixToCamel(prefix: string): string {
+  return prefix.charAt(0).toLowerCase() + prefix.slice(1);
+}
+
+function stripA11yExampleControls(a11y: Record<string, unknown>): void {
+  const controlsValue = a11y["controls"];
+  if (!(controlsValue && typeof controlsValue === "object")) {
+    return;
+  }
+  const { exampleControl: _drop, ...rest } = controlsValue as Record<string, unknown>;
+  if (Object.keys(rest).length === 0) {
+    const { controls: _c, ...withoutControls } = a11y;
+    for (const key of Object.keys(a11y)) {
+      Reflect.deleteProperty(a11y, key);
+    }
+    Object.assign(a11y, withoutControls);
+  } else {
+    a11y["controls"] = rest;
+  }
+}
+
+function writeEmptyPreferencesShell(simPrefix: string): void {
+  const camel = prefixToCamel(simPrefix);
+  const prefsDir = join(SRC, "preferences");
+
+  const modelPath = join(prefsDir, `${simPrefix}PreferencesModel.ts`);
+  writeFileSync(
+    modelPath,
+    `/**
+ * ${simPrefix}PreferencesModel.ts
+ *
+ * Model for the simulation-specific preferences shown in Preferences →
+ * Simulation. Keep this empty shell until the sim needs real preferences; the
+ * optional tandem keeps main.ts wiring uniform.
+ */
+import type { Tandem } from "scenerystack/tandem";
+import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
+import "./${camel}QueryParameters.js";
+
+export class ${simPrefix}PreferencesModel {
+  public constructor(tandem?: Tandem) {
+    // Optional tandem kept so main.ts wiring stays uniform before preferences exist.
+    if (tandem) {
+      // Preference Properties will attach under this tandem when added.
+    }
+  }
+
+  public reset(): void {
+    // No sim-specific preferences yet.
+  }
+}
+
+${simPrefix}Namespace.register("${simPrefix}PreferencesModel", ${simPrefix}PreferencesModel);
+`,
+    "utf8",
+  );
+  console.log(`  stripped ${relative(ROOT, modelPath)}`);
+
+  const nodePath = join(prefsDir, `${simPrefix}PreferencesNode.ts`);
+  writeFileSync(
+    nodePath,
+    `/**
+ * ${simPrefix}PreferencesNode.ts
+ *
+ * Custom preferences UI shown in Preferences → Simulation. Add controls here
+ * when the sim gains sim-specific preferences.
+ */
+import { VBox } from "scenerystack/scenery";
+import type { Tandem } from "scenerystack/tandem";
+import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
+import type { ${simPrefix}PreferencesModel } from "./${simPrefix}PreferencesModel.js";
+
+export class ${simPrefix}PreferencesNode extends VBox {
+  public constructor(_preferencesModel: ${simPrefix}PreferencesModel, _tandem?: Tandem) {
+    super({
+      align: "left",
+      spacing: 12,
+      children: [],
+    });
+  }
+}
+
+${simPrefix}Namespace.register("${simPrefix}PreferencesNode", ${simPrefix}PreferencesNode);
+`,
+    "utf8",
+  );
+  console.log(`  stripped ${relative(ROOT, nodePath)}`);
+
+  const qpPath = join(prefsDir, `${camel}QueryParameters.ts`);
+  writeFileSync(
+    qpPath,
+    `/**
+ * ${camel}QueryParameters.ts
+ *
+ * Sim-specific startup query parameters. Declare each public parameter here and
+ * initialize matching preference Properties from them when needed.
+ */
+import { logGlobal } from "scenerystack/phet-core";
+import { QueryStringMachine } from "scenerystack/query-string-machine";
+import ${simPrefix}Namespace from "../${simPrefix}Namespace.js";
+
+const ${camel}QueryParameters = QueryStringMachine.getAll({});
+
+${simPrefix}Namespace.register("${camel}QueryParameters", ${camel}QueryParameters);
+
+logGlobal("phet.chipper.queryParameters");
+
+export default ${camel}QueryParameters;
+`,
+    "utf8",
+  );
+  console.log(`  stripped ${relative(ROOT, qpPath)}`);
+}
+
+function stripLocaleDemoStrings(): void {
+  for (const file of ["strings_en.json", "strings_es.json", "strings_fr.json"]) {
+    const path = join(SRC, "i18n", file);
+    const json = JSON.parse(readFileSync(path, "utf8")) as {
+      preferences?: Record<string, unknown>;
+      a11y?: Record<string, unknown>;
+    };
+    if (json.preferences && "exampleToggle" in json.preferences) {
+      const { exampleToggle: _drop, ...rest } = json.preferences;
+      json.preferences = rest;
+    }
+    if (json.a11y) {
+      if (Object.hasOwn(json.a11y, "screenSummary")) {
+        stripA11yExampleControls(json.a11y);
+      } else {
+        for (const value of Object.values(json.a11y)) {
+          if (value && typeof value === "object") {
+            stripA11yExampleControls(value as Record<string, unknown>);
+          }
+        }
+      }
+    }
+    writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`, "utf8");
+    console.log(`  stripped ${relative(ROOT, path)}`);
+  }
+
+  const smPath = join(SRC, "i18n", "StringManager.ts");
+  let sm = readFileSync(smPath, "utf8");
+  sm = sm.replace(
+    /\n {2}readonly controls: \{\n {4}readonly exampleControlStringProperty: ReadOnlyProperty<string>;\n {2}\};/g,
+    "",
+  );
+  sm = sm.replace(/\n {2}readonly exampleToggleStringProperty: ReadOnlyProperty<string>;/g, "");
+  writeFileSync(smPath, sm, "utf8");
+  console.log(`  stripped ${relative(ROOT, smPath)}`);
+}
+
+function stripScreenViewDemos(screens: ScreenSpec[]): void {
+  for (const screen of screens) {
+    const viewPath = join(SRC, screen.kebab, "view", `${screen.pascal}ScreenView.ts`);
+    if (!existsSync(viewPath)) {
+      continue;
+    }
+    let view = readFileSync(viewPath, "utf8");
+    view = view.replace(/\n\s*\/\/ ── Placeholder label[\s\S]*?\n\s*\}\n/, "\n");
+    view = view.replace(/^import \{ name as packageName \} from "[^"]+package\.json";\n/m, "");
+    if (!/\bnew Text\b/.test(view)) {
+      view = view.replace(
+        /import \{ Node, Rectangle, Text \} from "scenerystack\/scenery";/,
+        'import { Node, Rectangle } from "scenerystack/scenery";',
+      );
+      view = view.replace(
+        /import \{ Text, Node, Rectangle \} from "scenerystack\/scenery";/,
+        'import { Node, Rectangle } from "scenerystack/scenery";',
+      );
+    }
+    if (!/\bStringManager\.getInstance\b/.test(view)) {
+      view = view.replace(/^import \{ StringManager \} from "[^"]+";\n/m, "");
+    }
+    view = view.replace(/\bexampleControl\b/g, "control");
+    view = view.replace(/\bexampleToggle\b/g, "preference");
+    writeFileSync(viewPath, view, "utf8");
+    console.log(`  stripped ${relative(ROOT, viewPath)}`);
+  }
+}
+
+/** Empty CapacitorLab-style preferences trio + locale/type cleanup for forks. */
+function stripDemoContent(simPrefix: string, screens: ScreenSpec[]): void {
+  writeEmptyPreferencesShell(simPrefix);
+  stripLocaleDemoStrings();
+  stripScreenViewDemos(screens);
+}
+
+function removeOptionalStarterFiles(args: ScaffoldArgs, simPrefix: string): void {
+  const controlOptionsPath = join(SRC, "common", `${simPrefix}ControlOptions.ts`);
+  if (!args.withControlOptions && existsSync(controlOptionsPath)) {
+    rmSync(controlOptionsPath);
+    console.log(`  removed  ${relative(ROOT, controlOptionsPath)} (pass --with-control-options to keep)`);
+  }
+
+  if (args.withTimeModel) {
+    return;
+  }
+  const timeModelPath = join(SRC, "common", "TimeModel.ts");
+  const timeModelTestPath = join(ROOT, "tests", "TimeModel.test.ts");
+  if (existsSync(timeModelPath)) {
+    rmSync(timeModelPath);
+    console.log(`  removed  ${relative(ROOT, timeModelPath)} (pass --with-time-model to keep)`);
+  }
+  if (existsSync(timeModelTestPath)) {
+    rmSync(timeModelTestPath);
+    console.log(`  removed  ${relative(ROOT, timeModelTestPath)}`);
+  }
+}
+
+function composeTimeModel(screens: ScreenSpec[]): void {
+  for (const screen of screens) {
+    const modelPath = join(SRC, screen.kebab, "model", `${screen.pascal}Model.ts`);
+    let model = readFileSync(modelPath, "utf8");
+    if (model.includes("TimeModel")) {
+      continue;
+    }
+    model = model.replace(
+      /import type \{ TModel \} from "scenerystack\/joist";\n/,
+      `import type { TModel } from "scenerystack/joist";\nimport { TimeModel } from "../../common/TimeModel.js";\n`,
+    );
+    model = model.replace(
+      new RegExp(`export class ${screen.pascal}Model implements TModel \\{\\n`),
+      `export class ${screen.pascal}Model implements TModel {\n  public readonly timer = new TimeModel();\n\n`,
+    );
+    if (model.includes("public reset(): void {") && !model.includes("this.timer.reset()")) {
+      model = model.replace(/public reset\(\): void \{\n/, "public reset(): void {\n    this.timer.reset();\n");
+    }
+    if (model.includes("public step(_dt: number): void {") && !model.includes("this.timer.step")) {
+      model = model.replace(
+        /public step\(_dt: number\): void \{\n\s*\/\/ TODO: advance simulation state here\n\s*\}/,
+        "public step(dt: number): void {\n    this.timer.step(dt);\n    // TODO: advance simulation state here\n  }",
+      );
+    }
+    writeFileSync(modelPath, model, "utf8");
+    console.log(`  updated  ${relative(ROOT, modelPath)} (TimeModel)`);
+  }
+}
+
+function ensureScreenModelDispose(screens: ScreenSpec[]): void {
+  for (const screen of screens) {
+    const modelPath = join(SRC, screen.kebab, "model", `${screen.pascal}Model.ts`);
+    let model = readFileSync(modelPath, "utf8");
+    if (/\bdispose\s*\(/.test(model)) {
+      continue;
+    }
+    model = model.replace(
+      /\n\}\n?\s*$/,
+      `\n  /** No-op until the model owns Properties or listeners to release. */\n  public dispose(): void {\n    // No resources yet.\n  }\n}\n`,
+    );
+    writeFileSync(modelPath, model, "utf8");
+    console.log(`  updated  ${relative(ROOT, modelPath)} (dispose)`);
+  }
+}
+
+function applyOptionalStarters(args: ScaffoldArgs, simPrefix: string, screens: ScreenSpec[]): void {
+  removeOptionalStarterFiles(args, simPrefix);
+  if (args.withTimeModel) {
+    composeTimeModel(screens);
+  }
+  ensureScreenModelDispose(screens);
+
+  // knip starter entries are template-only; drop any that no longer exist on disk.
+  const knipPath = join(ROOT, "knip.json");
+  if (existsSync(knipPath)) {
+    const knip = JSON.parse(readFileSync(knipPath, "utf8")) as { entry?: string[] };
+    if (Array.isArray(knip.entry)) {
+      knip.entry = knip.entry.filter((entry) => {
+        const file = entry.replace(/!$/, "");
+        return existsSync(join(ROOT, file));
+      });
+      writeFileSync(knipPath, `${JSON.stringify(knip, null, 2)}\n`, "utf8");
+      console.log(`  updated  ${relative(ROOT, knipPath)}`);
+    }
+  }
+
+  const leakPath = join(ROOT, "tests", "memory-leak.test.ts");
+  const cases = screens.map((s) => `{ name: "${s.pascal}Model", create: () => new ${s.pascal}Model() }`);
+  if (args.withTimeModel) {
+    cases.unshift('{ name: "TimeModel", create: () => new TimeModel(), idempotentDispose: true }');
+  }
+  const imports = [
+    ...(args.withTimeModel ? ['import { TimeModel } from "../src/common/TimeModel.js";'] : []),
+    ...screens.map((s) => `import { ${s.pascal}Model } from "../src/${s.kebab}/model/${s.pascal}Model.js";`),
+    'import { describeDisposalLeaks } from "./helpers/memoryLeak.js";',
+  ].join("\n");
+  writeFileSync(
+    leakPath,
+    `/**
+ * Memory-leak regression suite (fleet standard).
+ *
+ * List every model/view object that links Properties, adds listeners, or owns child
+ * nodes, with a factory that builds a fresh instance. The shared harness in
+ * tests/helpers/memoryLeak.ts (template-owned) checks that each one is garbage
+ * collected after dispose() and leaves no survivors across repeated cycles
+ * (idempotentDispose: true also checks a second dispose()). Add sim-specific leak
+ * tests below using forceGC().
+ */
+
+${imports}
+
+describeDisposalLeaks([${cases.join(", ")}]);
+`,
+    "utf8",
+  );
+  console.log(`  updated  ${relative(ROOT, leakPath)}`);
+}
+
+function writeSeedDocs(simPrefix: string, screens: ScreenSpec[]): void {
+  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+    name?: string;
+    description?: string;
+  };
+  const displayName = (() => {
+    try {
+      const html = readFileSync(join(ROOT, "index.html"), "utf8");
+      const m = html.match(/<title>([^<]+)<\/title>/);
+      return m?.[1]?.trim() || simPrefix;
+    } catch {
+      return simPrefix;
+    }
+  })();
+  const first = screens[0];
+  if (!first) {
+    return;
+  }
+
+  const screenRows = screens
+    .map(
+      (s) =>
+        `| \`src/${s.kebab}/${s.pascal}Screen.ts\` | Screen wrapper |\n` +
+        `| \`src/${s.kebab}/model/${s.pascal}Model.ts\` | Simulation state and logic |\n` +
+        `| \`src/${s.kebab}/view/${s.pascal}ScreenView.ts\` | Visual nodes, layout, a11y wiring |`,
+    )
+    .join("\n");
+
+  const agents = `# AGENTS.md — ${displayName}
+
+Sim-specific context for AI assistants. General SceneryStack guidance: [OpenLyceum/.github/AGENTS.md](https://github.com/OpenLyceum/.github/blob/main/AGENTS.md).
+
+## Project
+
+${displayName} (\`${pkg.name ?? ""}\`) is a SceneryStack simulation scaffolded from SceneryStackTemplate.
+${pkg.description ? `${pkg.description}` : ""}
+
+## Key files
+
+| File | Purpose |
+|---|---|
+| \`src/${simPrefix}Colors.ts\` | All \`ProfileColorProperty\` instances |
+| \`src/${simPrefix}Constants.ts\` | Named numeric constants |
+| \`src/${simPrefix}Namespace.ts\` | Namespace for color property names |
+| \`src/i18n/StringManager.ts\` | Singleton localized string accessor |
+| \`src/common/${simPrefix}Panel.ts\` | Pre-themed \`Panel\` wrapper |
+| \`src/common/${simPrefix}ButtonOptions.ts\` | Flat button / combo-box option bundles |
+${screenRows}
+
+## Compliance carve-outs
+
+None yet.
+`;
+  writeFileSync(join(ROOT, "AGENTS.md"), agents, "utf8");
+  console.log("  wrote    AGENTS.md");
+
+  mkdirSync(join(ROOT, "doc"), { recursive: true });
+  writeFileSync(
+    join(ROOT, "doc", "model.md"),
+    `# Model — ${displayName}
+
+Educator-facing description of what this simulation models.
+
+## Overview
+
+*Describe the phenomenon and the ideas a student should take away.*
+
+## Quantities and units
+
+| Quantity | Symbol | Units | Range |
+|---|---|---|---|
+| *(fill in)* | | | |
+
+## Governing equations
+
+*State the equations or rules that drive the model.*
+
+## Simplifications
+
+*List intentional idealizations relative to the real system.*
+`,
+    "utf8",
+  );
+  console.log("  wrote    doc/model.md");
+
+  const screenList = screens.map((s) => `src/${s.kebab}/`).join(", ");
+  writeFileSync(
+    join(ROOT, "doc", "implementation-notes.md"),
+    `# Implementation notes — ${displayName}
+
+Developer-facing architecture notes for \`${pkg.name ?? displayName}\`.
+
+## Architecture
+
+Screens: ${screenList}
+
+- Models own state and \`step\` / \`reset\`; views observe Properties and never integrate physics.
+- Colors live in \`src/${simPrefix}Colors.ts\`; strings in \`src/i18n/\` via \`StringManager\`.
+- Preferences shell: \`src/preferences/\` (empty until sim-specific prefs are added).
+
+## Notes
+
+*Record design decisions, performance constraints, and known limitations here.*
+`,
+    "utf8",
+  );
+  console.log("  wrote    doc/implementation-notes.md");
 }
 
 /**
@@ -658,6 +1103,7 @@ function main(): void {
   }
   const prefix = detectPrefix(args.prefix);
   const sharedModel = args.sharedModel;
+  const fork = !isTemplatePackage();
   const protoDir = findPrototypeDir();
 
   // Validate unique kebabs / keys
@@ -679,6 +1125,9 @@ function main(): void {
   console.log(`  sim prefix: ${prefix}`);
   console.log(`  prototype:  ${relative(ROOT, protoDir)}`);
   console.log(`  shared model (common/model): ${sharedModel ? "yes" : "no"}`);
+  console.log(`  time model: ${args.withTimeModel ? "yes" : "no (default)"}`);
+  console.log(`  control options: ${args.withControlOptions ? "yes" : "no (default)"}`);
+  console.log(`  strip demos / seed docs: ${fork ? "yes (fork)" : "no (live template)"}`);
   console.log("");
 
   for (const s of screenList) {
@@ -694,8 +1143,20 @@ function main(): void {
   }
   updateMain(screenList, prefix);
 
+  if (fork) {
+    console.log("\nStripping template demos for the new seed…");
+    stripDemoContent(prefix, screenList);
+    console.log("\nApplying optional starter defaults…");
+    applyOptionalStarters(args, prefix, screenList);
+  }
+
   console.log("\nRewriting docs that referenced the prototype…");
   updateDocs(screenList, prefix);
+
+  if (fork) {
+    console.log("\nWriting short sim-specific docs…");
+    writeSeedDocs(prefix, screenList);
+  }
 
   console.log("\nRemoving prototype screen package…");
   rmSync(protoDir, { recursive: true, force: true });
@@ -705,7 +1166,7 @@ function main(): void {
   console.log("\nNext steps:");
   console.log("  1. npm run fix     (emitted imports need Biome's organizeImports pass)");
   console.log("  2. npm run check");
-  if (screenList.length > 1) {
+  if (screenList.length > 1 && !fork) {
     console.log(`  3. docs now reference the ${screenList[0]?.title} screen only — tailor them for all screens`);
   }
 }
