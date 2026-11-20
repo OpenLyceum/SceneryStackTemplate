@@ -45,6 +45,7 @@ const stringProperties = LocalizedString.getNestedStringProperties({
   es: stringsEs,
 });
 
+// seed:reference-string-types:start
 /**
  * Explicit `a11y` shape exposed by {@link StringManager.getA11yStrings}.
  * Keep this in sync with the `a11y` key in `strings_en.json` — a locale key
@@ -70,6 +71,7 @@ export type SimPreferenceStrings = {
   readonly titleStringProperty: ReadOnlyProperty<string>;
   readonly exampleToggleStringProperty: ReadOnlyProperty<string>;
 };
+// seed:reference-string-types:end
 
 /**
  * StringManager is a singleton that provides typed access to all localized
