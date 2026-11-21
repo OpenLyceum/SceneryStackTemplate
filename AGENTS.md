@@ -201,9 +201,19 @@ Fleet-standard Vitest layout (keep when forking):
 | `tests/TimeModel.test.ts` | Sample model unit tests — replace with real physics tests |
 | `tests/memory-leak.test.ts` | Lists the sim's disposables for `describeDisposalLeaks()` (collected after dispose, repeated cycles; opt-in double dispose) |
 | `tests/helpers/memoryLeak.ts` | Template-owned leak harness: `describeDisposalLeaks`, `forceGC`, `createAndDispose` |
+| `tests/soak/headless.soak.ts` | By-hand headless soak (`npm run test:soak:headless`, never CI): lists the sim's screens as `main.ts` builds them, plus tracked globals, exclusions and sim-specific actions |
+| `tests/helpers/headlessSoak.ts` | Template-owned harness: `describeHeadlessSoak` presses every control, sets sliders, fuzzes model Properties, steps, switches screens, flips profile/locale, Reset All; fails on rising listener counts, node counts or heap |
+| `vitest.soak.config.ts` | Template-owned Vitest config that runs only `tests/soak/**/*.soak.ts` (`SOAK_HEADLESS=1` turns on every locale and the projector profile in `tests/setup.ts`) |
+| `tests/soak/browser.spec.ts` | Template-owned browser soak (`npm run test:soak:browser`): Reset All, screen cycling, running each screen, pointer and keyboard fuzz; env knobs listed in the file header |
 | `tests/fuzz/fuzz.spec.ts` | Optional Playwright fuzz smoke: pointer `?fuzz` + keyboard `?fuzzBoard` (template-owned; add sim-specific specs as separate files) |
 | `playwright.config.ts` | Chromium project + Vite webServer for `tests/**/*.spec.ts` (template-owned) |
 | `tests/browser/*.spec.ts` | Optional sim-specific Playwright tests (`npx playwright test tests/browser`); `npm run test:fuzz` runs only `tests/fuzz/` |
+
+Naming: the extension says which runner and when — `*.test.ts` Vitest in `npm test` and CI,
+`*.soak.ts` Vitest by hand through `vitest.soak.config.ts`, `*.spec.ts` Playwright by hand.
+The folder says what it is for — `tests/` unit tests mirroring `src/` plus `memory-leak.test.ts`,
+`tests/soak/` the two leak soaks, `tests/fuzz/` the fuzz smoke, `tests/browser/` sim-specific
+Playwright specs (no template-owned files).
 
 - Put unit tests only under root `tests/`, mirroring `src/` (never co-locate or use `__tests__/`).
 - Change the `name` passed to `init()` in `tests/setup.ts` to match `package.json` after `npm run rename`.
@@ -211,6 +221,18 @@ Fleet-standard Vitest layout (keep when forking):
 - Add every model/view object that adds/removes nodes or links Properties at runtime to the
   `describeDisposalLeaks([...])` list in `memory-leak.test.ts`; put sim-specific leak scenarios
   after it using `forceGC()` from `tests/helpers/memoryLeak.ts` (never a local copy).
+- Keep `tests/soak/headless.soak.ts` building the same screens as `main.ts` (scaffolding writes it).
+  Pass shared objects the screens receive (notebooks, preferences) the same way, list long-lived
+  globals under `tracked` (`{ SimColors, preferences }`), `exclude` controls that need hardware or
+  files, and add `actions` for what only the sim can do. Run `npm run test:soak` after
+  changing views or models. It prints how many controls it reached; a screen showing only its
+  Reset All is not being exercised. A failure names the Properties whose listener counts rose;
+  replay it with `SOAK_SEED=<seed>`.
+- `npm run test:soak` runs the headless soak (about 20 s), then the browser soak, which covers what
+  headless cannot: real rendering and the `?fuzz` / `?fuzzBoard` input drivers, sampling the browser
+  heap as they go. It fails on growth past `SOAK_MAX_GROWTH`× or a steady climb past
+  `SOAK_MAX_CLIMB_MIB`. Run either alone with `test:soak:headless` / `test:soak:browser`; both
+  replay with `SOAK_SEED=<seed from the test name>` and scale with `SOAK_ROUNDS`.
 - Drift guards (template-owned, so they apply fleet-wide):
   - `expect.requireAssertions`: a test with no `expect()` call fails.
   - `sequence.shuffle`: files and tests run in random order. Reproduce a failing order with
@@ -244,6 +266,9 @@ npm run lint && npm run check && npm run build && npm test
 | `npm run test:fuzz` | Playwright fuzz smoke (pointer + keyboard, `?ea`, 30s each; `npm run test:fuzz -- 90` to change) |
 | `npm run test:fuzz:quick` | 10s fuzz |
 | `npm run test:fuzz:long` | 300s fuzz |
+| `npm run test:soak` | By-hand leak soaks: headless, then browser |
+| `npm run test:soak:headless` | Headless soak (controls, screens, Reset All, profile, locale; listener and node counts) |
+| `npm run test:soak:browser` | Browser soak (Reset All, screens, running, pointer/keyboard fuzz; JS heap) |
 | `npm run icons` | Regenerate PWA icons; seed missing screenshots, preserve existing ones |
 | `npm run rename` | Sim-level fork/rename (`--id`, `--name`) |
 | `npm run scaffold-screens` | Emit N screens (`--screens Intro,Lab`) |

@@ -30,6 +30,7 @@ const FIXTURE_ENTRIES = [
   "tests/generators.test.ts",
   "tests/memory-leak.test.ts",
   "tests/setup.ts",
+  "tests/soak",
   "vite.config.ts",
 ] as const;
 
@@ -54,6 +55,7 @@ const CHECK_FIXTURE_ENTRIES = [
   "tsconfig.scripts.json",
   "tsconfig.test.json",
   "vitest.config.ts",
+  "vitest.soak.config.ts",
 ] as const;
 
 const fixtureRoots: string[] = [];

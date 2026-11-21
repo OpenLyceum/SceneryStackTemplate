@@ -1080,6 +1080,28 @@ ${screens
   console.log(`  updated  ${relative(ROOT, leakPath)}`);
 }
 
+/** Point the by-hand headless soak (tests/soak/headless.soak.ts) at the emitted screens. */
+function updateSoakSuite(screens: ScreenSpec[], simPrefix: string): void {
+  const soakPath = join(ROOT, "tests", "soak", "headless.soak.ts");
+  const imports = [
+    `import ${simPrefix}Colors from "../../src/${simPrefix}Colors.js";`,
+    ...screens.map((s) => `import { ${s.pascal}Screen } from "../../src/${s.kebab}/${s.pascal}Screen.js";`),
+  ];
+  const entries = screens.map(
+    (s) => `    new ${s.pascal}Screen({ name: new StringProperty("${s.title}"), tandem: Tandem.OPT_OUT }),`,
+  );
+  let soak = readFileSync(soakPath, "utf8");
+  soak = replaceSeedRegion(soak, soakPath, "soak-imports", `${imports.join("\n")}\n`);
+  soak = replaceSeedRegion(
+    soak,
+    soakPath,
+    "soak-screens",
+    `  screens: () => [\n${entries.join("\n")}\n  ],\n  tracked: () => ({ ${simPrefix}Colors }),\n`,
+  );
+  writeFileSync(soakPath, soak, "utf8");
+  console.log(`  updated  ${relative(ROOT, soakPath)}`);
+}
+
 function writeSeedDocs(simPrefix: string, screens: ScreenSpec[], args: ScaffoldArgs): void {
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
     name?: string;
@@ -1300,6 +1322,7 @@ function main(): void {
     wireSharedModel(screenList);
   }
   updateMain(screenList, prefix);
+  updateSoakSuite(screenList, prefix);
 
   if (fork) {
     console.log("\nStripping template demos for the new seed…");
