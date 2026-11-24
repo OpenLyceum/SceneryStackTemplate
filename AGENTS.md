@@ -166,6 +166,12 @@ The template also owns `biome-plugins/`, the GritQL lint plugins that turn writt
 conventions into Biome diagnostics. `biome.json` loads them for `src/**` only.
 `no-native-tofixed.grit` flags `Number.prototype.toFixed` (use `toFixed(value, digits)`
 from `scenerystack/dot`). `no-math-random.grit` flags `Math.random()` (use `dotRandom`).
+`no-math-round.grit` flags `Math.round()` (use `roundSymmetric` from `scenerystack/dot`).
+`no-native-timer.grit` flags bare/`window` `setTimeout`/`setInterval` (prefer `step(dt)` or
+`stepTimer` from `scenerystack/axon`; `stepTimer.setTimeout` is allowed).
+`no-window-inner-size.grit` flags `window.innerWidth`/`innerHeight` (use `Sim.dimensionProperty`
+or `layoutBounds`/`visibleBounds`). `require-property-suffix.grit` flags `const`/`let`/`this.`
+bindings of axon `*Property` types whose name does not end in `Property`.
 `no-hardcoded-text.grit` flags display words written as literals in `new Text(...)` /
 `new RichText(...)` (use a `*StringProperty`; symbols, units, formulas and tags pass).
 `no-inline-color.grit` flags `new Color(...)` with only literal arguments and string
