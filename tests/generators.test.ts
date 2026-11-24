@@ -48,7 +48,6 @@ const CHECK_FIXTURE_ENTRIES = [
   "biome.json",
   "biome-plugins",
   "playwright.config.ts",
-  "tests/browser",
   "tests/fuzz",
   "tests/helpers",
   "tsconfig.json",
