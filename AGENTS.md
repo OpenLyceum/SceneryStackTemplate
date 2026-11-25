@@ -170,7 +170,10 @@ from `scenerystack/dot`). `no-math-random.grit` flags `Math.random()` (use `dotR
 `no-native-timer.grit` flags bare/`window` `setTimeout`/`setInterval` (prefer `step(dt)` or
 `stepTimer` from `scenerystack/axon`; `stepTimer.setTimeout` is allowed).
 `no-window-inner-size.grit` flags `window.innerWidth`/`innerHeight` (use `Sim.dimensionProperty`
-or `layoutBounds`/`visibleBounds`). `require-property-suffix.grit` flags `const`/`let`/`this.`
+or `layoutBounds`/`visibleBounds`). `no-screen-view-pdom-order.grit` flags `this.pdomOrder`
+assignments and `this.setPDOMOrder(...)` in direct `ScreenView` subclasses. Set the order on
+a child `Node` or use the screen's PDOM play and control area nodes.
+`require-property-suffix.grit` flags `const`/`let`/`this.`
 bindings of axon `*Property` types whose name does not end in `Property`.
 `no-hardcoded-text.grit` flags display words written as literals in `new Text(...)` /
 `new RichText(...)` (use a `*StringProperty`; symbols, units, formulas and tags pass).
