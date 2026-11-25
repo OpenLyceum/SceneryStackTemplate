@@ -324,9 +324,8 @@ tests and other template-only files are removed by `--fix`).
 1. **Rename** — replace `scenerystack-template` / `SceneryStack Template` / `Sim` prefix in `init.ts`, `brand.ts`, `package.json` (name, description, keywords, repository.url), Colors/Constants/Namespace/Panel/ButtonOptions/ControlOptions/Preferences
 2. **Screens** — run `scaffold-screens` or mirror `sim-screen/` into kebab folders
 3. **Locale** — add `strings_XX.json`, register in `StringManager`, add locale to `init.ts` `availableLocales`
-4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`; match theme color in `index.html` / `sim.config.json`.
-   Once `assets/screenshot.png` exists (Baton `generate-screenshots.sh`), `npm run icons -- --screenshots-from-assets`
-   replaces the placeholder PWA screenshots
+4. **Icon** — edit `public/icons/icon.svg`, run `npm run icons`, and set the theme color in `sim.config.json`.
+   Baton’s `generate-screenshots.sh` captures the sim and replaces the placeholder install screenshots.
 5. **Colors** — edit `*Colors.ts` (`default` + `projector` profiles per property), one
    `new ProfileColorProperty(Namespace, name, { default, projector })` per entry — no local helper
 6. **Description** — replace the rename placeholder (`A SceneryStack simulation: …`) with a real
@@ -373,7 +372,8 @@ malformed value fails the build.
 | Key | Effect |
 |---|---|
 | `title` / `shortName` | PWA `name` (and screenshot labels) / `short_name` (30 max; launchers truncate past about 12) |
-| `themeColor` / `backgroundColor` | PWA colors, `#rrggbb` |
+| `themeColor` / `backgroundColor` | PWA colors, `#rrggbb`. Theme color also drives the built HTML and screenshot background. |
+| `pwaId` | Optional. Pin the deployed manifest ID here before changing the package name so installed apps keep their identity. |
 | `allowPermissions` | Any of `camera`, `microphone`, `geolocation`; each becomes `<feature>=(self)` in `Permissions-Policy` (a locked policy logs a console error per request and fails fuzz) |
 | `connectSrc` | Extra bare `https://` origins appended to CSP `connect-src` for runtime fetches |
 | `precacheExtensions` | Extra file extensions for the Workbox precache (e.g. `wav`, `mp3`) |
@@ -394,4 +394,8 @@ warnings. A need outside these keys is a template change or a carve-out, not a l
 
 ## PWA
 
-After `npm run build`, the sim is installable offline via Workbox (`dist/manifest.webmanifest`).
+After the first online load installs the Workbox worker, this sim can launch offline.
+A new worker waits for all tabs and installed windows on the current version to close.
+The generated manifest lives at `dist/manifest.webmanifest`. Baton verifies the built
+artifact and reports precache size in shared CI. See Baton's `CONVENTIONS.md` for
+the manifest, install screenshot, and offline requirements.
